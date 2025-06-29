@@ -51,10 +51,10 @@ export default function CommitteePage() {
                             Want to help with the reunion planning?
                         </p>
                         <a
-                            href="/contact"
+                            href="mailto:info@archikutty.com"
                             className="inline-block bg-gradient-to-r from-purple-600 to-pink-600 text-white font-semibold py-3 px-6 rounded-lg shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200"
                         >
-                            Contact Us
+                            Email the Committee
                         </a>
                     </div>
                 </div>
