@@ -77,12 +77,9 @@ export default function ContactPage() {
                             <p className="text-sm text-gray-500 mb-4">
                                 Don't see your question here?
                             </p>
-                            <a
-                                href="mailto:info@archikutty.com"
-                                className="inline-block bg-gradient-to-r from-purple-600 to-pink-600 text-white font-semibold py-3 px-6 rounded-lg shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200"
-                            >
-                                Ask Us Directly
-                            </a>
+                            <div className="inline-block bg-gradient-to-r from-purple-600 to-pink-600 text-white font-semibold py-3 px-6 rounded-lg shadow-lg text-lg">
+                                Contact: info@archikutty.com
+                            </div>
                         </div>
                     </div>
                 </div>
