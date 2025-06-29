@@ -58,12 +58,6 @@ export default function ContactPage() {
                                 </div>
                             </div>
                         </div>
-
-                        <div className="mt-8 p-4 bg-gradient-to-r from-purple-100 to-pink-100 rounded-lg">
-                            <h3 className="font-semibold text-gray-800 mb-2">Committee Chair</h3>
-                            <p className="text-gray-600">Sarah Johnson</p>
-                            <p className="text-sm text-gray-500">Available for any questions about the reunion</p>
-                        </div>
                     </div>
 
                     {/* FAQ Section */}
