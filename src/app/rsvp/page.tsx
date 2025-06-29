@@ -31,7 +31,7 @@ export default function RSVPPage() {
             <div className="max-w-2xl mx-auto">
                 <div className="text-center mb-12">
                     <h1 className="text-4xl md:text-5xl font-bold text-gray-800 mb-4">
-                        RSVP for Family Reunion 2024
+                        RSVP for Archikutty Night 2025
                     </h1>
                     <p className="text-xl text-gray-600">
                         We can't wait to celebrate with you! Please let us know if you'll be joining us.

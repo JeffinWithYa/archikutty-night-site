@@ -14,8 +14,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Family Reunion 2024",
-  description: "Join us for an unforgettable family reunion celebration!",
+  title: "Archikutty Night 2025",
+  description: "Join us for Archikutty Night 2025, an unforgettable family celebration!",
 };
 
 export default function RootLayout({

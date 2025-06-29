@@ -36,7 +36,7 @@ const CountdownTimer = () => {
 
     return (
         <div className="bg-white/90 backdrop-blur-sm rounded-2xl shadow-xl p-8 mb-8 border border-white/20">
-            <h2 className="text-3xl font-bold text-gray-900 mb-8 text-center">Time Until Reunion</h2>
+            <h2 className="text-3xl font-bold text-gray-900 mb-8 text-center">Countdown to Archikutty Night 🎉</h2>
 
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <div className="text-center">

@@ -5,10 +5,10 @@ export default function CountdownPage() {
         <div className="min-h-screen py-16 px-4 sm:px-6 lg:px-8">
             <div className="max-w-4xl mx-auto text-center">
                 <h1 className="text-4xl md:text-5xl font-bold text-gray-800 mb-6">
-                    Countdown to Our Reunion
+                    Countdown to Archikutty Night 2025
                 </h1>
                 <p className="text-xl text-gray-600 mb-12">
-                    The excitement is building! Here's how much time we have left until our special day.
+                    The excitement is building! Here's how much time we have left until Archikutty Night 2025.
                 </p>
 
                 <CountdownTimer />

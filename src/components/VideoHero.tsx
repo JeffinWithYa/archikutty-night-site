@@ -24,11 +24,10 @@ const VideoHero = () => {
             {/* Hero Content */}
             <div className="relative z-10 text-center text-white px-4 sm:px-6 lg:px-8">
                 <h1 className="text-5xl md:text-7xl font-bold mb-6 tracking-tight">
-                    <span className="block">Family</span>
+                    <span className="block">Archikutty Night</span>
                     <span className="block bg-gradient-to-r from-yellow-300 to-pink-300 bg-clip-text text-transparent">
-                        Reunion
+                        2025
                     </span>
-                    <span className="block text-4xl md:text-5xl mt-2">2024</span>
                 </h1>
 
                 <p className="text-xl md:text-2xl mb-8 max-w-3xl mx-auto leading-relaxed">

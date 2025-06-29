@@ -18,12 +18,10 @@ export default function Home() {
       <section className="py-16 px-4 sm:px-6 lg:px-8">
         <div className="max-w-4xl mx-auto text-center">
           <h2 className="text-4xl md:text-5xl font-bold text-gray-900 mb-6">
-            Welcome to Our Family Reunion!
+            Welcome to Archikutty Night 2025!
           </h2>
           <p className="text-xl text-gray-700 mb-8 leading-relaxed">
-            Join us for an unforgettable celebration filled with love, laughter,
-            and cherished memories. It's time to reconnect with family and create
-            new moments together.
+            Join us for Archikutty Night 2025—an unforgettable celebration filled with love, laughter, and cherished memories. It's time to reconnect with family and create new moments together.
           </p>
 
           <div className="grid md:grid-cols-3 gap-8 mt-12">

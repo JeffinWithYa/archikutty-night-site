@@ -27,7 +27,7 @@ const Navigation = () => {
                     <Link href="/" className="flex items-center space-x-2">
                         <span className="text-2xl">🎉</span>
                         <span className="text-xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
-                            Family Reunion 2024
+                            Archikutty Night 2025
                         </span>
                     </Link>
 
