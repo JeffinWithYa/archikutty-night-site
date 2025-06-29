@@ -1,0 +1,70 @@
+export default function FamilyTree() {
+    return (
+        <div className="min-h-screen bg-gradient-to-br from-purple-50 to-pink-50">
+            <div className="container mx-auto px-4 py-16">
+                {/* Header */}
+                <div className="text-center mb-16">
+                    <h1 className="text-4xl md:text-6xl font-bold text-gray-900 mb-6">
+                        <span className="bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
+                            Family Tree
+                        </span>
+                    </h1>
+                    <p className="text-xl text-gray-700 max-w-3xl mx-auto">
+                        Discover your roots and see how we're all connected
+                    </p>
+                </div>
+
+                {/* Coming Soon Section */}
+                <div className="max-w-4xl mx-auto">
+                    <div className="bg-white/90 backdrop-blur-sm rounded-2xl shadow-xl p-12 text-center border border-white/20">
+                        <div className="text-8xl mb-8">🌳</div>
+
+                        <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-6">
+                            Coming Soon!
+                        </h2>
+
+                        <p className="text-lg text-gray-700 mb-8 leading-relaxed max-w-2xl mx-auto">
+                            We're working on creating a beautiful interactive family tree that will showcase
+                            our rich heritage and help everyone understand how we're all connected. This will
+                            include photos, stories, and the relationships that bind our family together.
+                        </p>
+
+                        <div className="grid md:grid-cols-3 gap-6 mt-12">
+                            <div className="p-6 bg-gradient-to-br from-purple-100 to-pink-100 rounded-xl">
+                                <div className="text-3xl mb-4">📸</div>
+                                <h3 className="text-lg font-semibold text-gray-900 mb-2">Family Photos</h3>
+                                <p className="text-gray-700 text-sm">Historical and recent photos of family members</p>
+                            </div>
+
+                            <div className="p-6 bg-gradient-to-br from-pink-100 to-purple-100 rounded-xl">
+                                <div className="text-3xl mb-4">📖</div>
+                                <h3 className="text-lg font-semibold text-gray-900 mb-2">Family Stories</h3>
+                                <p className="text-gray-700 text-sm">Cherished memories and tales from generations</p>
+                            </div>
+
+                            <div className="p-6 bg-gradient-to-br from-purple-100 to-pink-100 rounded-xl">
+                                <div className="text-3xl mb-4">🔗</div>
+                                <h3 className="text-lg font-semibold text-gray-900 mb-2">Connections</h3>
+                                <p className="text-gray-700 text-sm">Interactive map of family relationships</p>
+                            </div>
+                        </div>
+
+                        <div className="mt-12 p-6 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-xl">
+                            <h3 className="text-xl font-semibold mb-2">Want to Help?</h3>
+                            <p className="mb-4">
+                                If you have family photos, stories, or genealogy information you'd like to contribute,
+                                please reach out to us!
+                            </p>
+                            <a
+                                href="/contact"
+                                className="inline-block bg-white text-purple-600 font-semibold py-2 px-6 rounded-full hover:bg-gray-50 transition-colors duration-200"
+                            >
+                                Contact Us
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+} 
