@@ -9,6 +9,7 @@ export default function RSVPPage() {
         attending: '',
         guests: '1',
         dietary: '',
+        location: '',
         message: ''
     });
 
@@ -123,6 +124,21 @@ export default function RSVPPage() {
                                 onChange={handleChange}
                                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                                 placeholder="Let us know about any dietary needs (optional)"
+                            />
+                        </div>
+
+                        <div>
+                            <label htmlFor="location" className="block text-sm font-medium text-gray-700 mb-2">
+                                Where are you traveling from? <span className="text-gray-500">(city, country, etc.) (optional)</span>
+                            </label>
+                            <input
+                                type="text"
+                                id="location"
+                                name="location"
+                                value={formData.location}
+                                onChange={handleChange}
+                                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                                placeholder="e.g. Toronto, Canada (optional)"
                             />
                         </div>
 
