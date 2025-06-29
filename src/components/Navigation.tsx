@@ -17,6 +17,7 @@ const Navigation = () => {
         { href: '/contact', label: 'Contact & FAQ' },
         { href: '/feedback', label: 'Feedback' },
         { href: '/map', label: 'Where Are They Coming From' },
+        { href: '/budget', label: 'Budget' },
     ];
 
     return (
