@@ -1,4 +1,12 @@
+'use client';
+import { useState } from 'react';
+import dynamic from 'next/dynamic';
+
 export default function FamilyTree() {
+    const [showAICall, setShowAICall] = useState(false);
+    const [showTextChat, setShowTextChat] = useState(false);
+    // Dynamically import the FamilyTreeAICall component to avoid SSR issues
+    const FamilyTreeAICall = dynamic(() => import('../../components/FamilyTreeAICall'), { ssr: false });
     return (
         <div className="min-h-screen bg-gradient-to-br from-purple-50 to-pink-50">
             <div className="container mx-auto px-4 py-16">
@@ -13,6 +21,28 @@ export default function FamilyTree() {
                         Discover your roots and see how we're all connected
                     </p>
                 </div>
+
+                {/* AI Call Button */}
+                <div className="flex flex-col items-center gap-4 mb-10">
+                    <div className="bg-yellow-100 text-yellow-800 font-semibold py-4 px-8 rounded-full shadow text-lg text-center flex items-center justify-center gap-2">
+                        <span role="img" aria-label="Phone" className="text-2xl">📞</span>
+                        AI Agent Phone Call (to help place you in the family tree) Coming Soon!
+                    </div>
+                    <button
+                        className="bg-gradient-to-r from-pink-600 to-purple-600 text-white font-bold py-3 px-8 rounded-full shadow-lg hover:scale-105 transition-transform text-lg"
+                        onClick={() => setShowTextChat(true)}
+                    >
+                        Chat with AI Agent to Get Placed in the Family Tree (Text Only)
+                    </button>
+                </div>
+
+                {/* AI Call Modal */}
+                {showAICall && (
+                    <FamilyTreeAICall onClose={() => setShowAICall(false)} mode="audio" />
+                )}
+                {showTextChat && (
+                    <FamilyTreeAICall onClose={() => setShowTextChat(false)} mode="text" />
+                )}
 
                 {/* Coming Soon Section */}
                 <div className="max-w-4xl mx-auto">
