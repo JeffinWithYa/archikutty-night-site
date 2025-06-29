@@ -113,7 +113,7 @@ export default function RSVPPage() {
 
                         <div>
                             <label htmlFor="dietary" className="block text-sm font-medium text-gray-700 mb-2">
-                                Dietary Restrictions or Allergies
+                                Dietary Restrictions or Allergies <span className="text-gray-500">(optional)</span>
                             </label>
                             <input
                                 type="text"
@@ -122,7 +122,7 @@ export default function RSVPPage() {
                                 value={formData.dietary}
                                 onChange={handleChange}
                                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                                placeholder="Let us know about any dietary needs"
+                                placeholder="Let us know about any dietary needs (optional)"
                             />
                         </div>
 
