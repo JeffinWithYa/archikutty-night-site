@@ -18,7 +18,7 @@ export default function MapPage() {
                     <p className="text-lg text-gray-600 mb-8">
                         We're creating an amazing interactive map that will show where every family member
                         is traveling from to join our reunion. It'll be incredible to see our family
-                        coming together from all corners of the world!
+                        coming together from all around the world!
                     </p>
 
                     <div className="grid md:grid-cols-3 gap-8 mt-12">
@@ -69,19 +69,19 @@ export default function MapPage() {
                             <div className="flex justify-center space-x-8 text-sm">
                                 <div className="text-center">
                                     <div className="text-2xl mb-1">📍</div>
-                                    <p className="font-medium">New York</p>
+                                    <p className="font-medium">Canada</p>
                                 </div>
                                 <div className="text-center">
                                     <div className="text-2xl mb-1">📍</div>
-                                    <p className="font-medium">California</p>
+                                    <p className="font-medium">India</p>
                                 </div>
                                 <div className="text-center">
                                     <div className="text-2xl mb-1">📍</div>
-                                    <p className="font-medium">Florida</p>
+                                    <p className="font-medium">USA</p>
                                 </div>
                                 <div className="text-center">
                                     <div className="text-2xl mb-1">📍</div>
-                                    <p className="font-medium">Texas</p>
+                                    <p className="font-medium">UK</p>
                                 </div>
                             </div>
                         </div>
@@ -96,8 +96,8 @@ export default function MapPage() {
                     </div>
 
                     <div className="text-center p-6 bg-white/70 rounded-xl shadow-lg">
-                        <div className="text-3xl font-bold text-pink-600 mb-2">~15</div>
-                        <p className="text-gray-600">Different States</p>
+                        <div className="text-3xl font-bold text-pink-600 mb-2">~8</div>
+                        <p className="text-gray-600">Different Countries</p>
                     </div>
 
                     <div className="text-center p-6 bg-white/70 rounded-xl shadow-lg">
