@@ -128,7 +128,7 @@ export default function RSVPPage() {
 
                         <div>
                             <label htmlFor="message" className="block text-sm font-medium text-gray-700 mb-2">
-                                Special Message or Requests
+                                Milestones or Stories from This Year (graduation, wedding, new job, special story, etc.)
                             </label>
                             <textarea
                                 id="message"
@@ -137,7 +137,7 @@ export default function RSVPPage() {
                                 value={formData.message}
                                 onChange={handleChange}
                                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                                placeholder="Any special messages or requests for the reunion?"
+                                placeholder="Share any milestones, achievements, or stories from this year that you'd like the committee to know. This info will help us personalize your Archikutty Night experience!"
                             />
                         </div>
 
