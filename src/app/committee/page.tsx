@@ -50,12 +50,9 @@ export default function CommitteePage() {
                         <p className="text-sm text-gray-500 mb-4">
                             Want to help with the reunion planning?
                         </p>
-                        <a
-                            href="mailto:info@archikutty.com"
-                            className="inline-block bg-gradient-to-r from-purple-600 to-pink-600 text-white font-semibold py-3 px-6 rounded-lg shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200"
-                        >
-                            Email the Committee
-                        </a>
+                        <div className="inline-block bg-gradient-to-r from-purple-600 to-pink-600 text-white font-semibold py-3 px-6 rounded-lg shadow-lg text-lg">
+                            Contact: info@archikutty.com
+                        </div>
                     </div>
                 </div>
             </div>
