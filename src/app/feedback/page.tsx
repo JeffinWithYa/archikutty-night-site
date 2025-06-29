@@ -54,7 +54,7 @@ export default function FeedbackPage() {
                                 Contact Us
                             </a>
                             <a
-                                href="mailto:reunion2024@family.com"
+                                href="mailto:info@archikutty.com"
                                 className="inline-block border-2 border-purple-600 text-purple-600 font-semibold py-3 px-6 rounded-lg hover:bg-purple-600 hover:text-white transition-all duration-200"
                             >
                                 Send Email

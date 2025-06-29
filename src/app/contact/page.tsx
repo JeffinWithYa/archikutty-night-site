@@ -44,17 +44,8 @@ export default function ContactPage() {
                                 <div className="text-2xl">📧</div>
                                 <div>
                                     <h3 className="font-semibold text-gray-800">Email</h3>
-                                    <p className="text-gray-600">reunion2024@family.com</p>
+                                    <p className="text-gray-600">info@archikutty.com</p>
                                     <p className="text-sm text-gray-500">We'll respond within 24 hours</p>
-                                </div>
-                            </div>
-
-                            <div className="flex items-start space-x-4">
-                                <div className="text-2xl">📞</div>
-                                <div>
-                                    <h3 className="font-semibold text-gray-800">Phone</h3>
-                                    <p className="text-gray-600">(555) 123-4567</p>
-                                    <p className="text-sm text-gray-500">Available Mon-Fri, 9 AM - 6 PM</p>
                                 </div>
                             </div>
 
@@ -62,9 +53,9 @@ export default function ContactPage() {
                                 <div className="text-2xl">📍</div>
                                 <div>
                                     <h3 className="font-semibold text-gray-800">Venue Address</h3>
-                                    <p className="text-gray-600">Family Community Center</p>
-                                    <p className="text-gray-600">123 Reunion Lane</p>
-                                    <p className="text-gray-600">Hometown, ST 12345</p>
+                                    <p className="text-gray-600">Sankkamam Party Hall</p>
+                                    <p className="text-gray-600">42 Tuxedo Ct, Scarborough,</p>
+                                    <p className="text-gray-600">ON M1G 3S7</p>
                                 </div>
                             </div>
                         </div>
@@ -94,7 +85,7 @@ export default function ContactPage() {
                                 Don't see your question here?
                             </p>
                             <a
-                                href="mailto:reunion2024@family.com"
+                                href="mailto:info@archikutty.com"
                                 className="inline-block bg-gradient-to-r from-purple-600 to-pink-600 text-white font-semibold py-3 px-6 rounded-lg shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200"
                             >
                                 Ask Us Directly
