@@ -12,7 +12,6 @@ const Navigation = () => {
         { href: '/', label: 'Home' },
         { href: '/rsvp', label: 'RSVP' },
         { href: '/committee', label: 'Committee' },
-        { href: '/countdown', label: 'Countdown' },
         { href: '/family-tree', label: 'Family Tree' },
         { href: '/contact', label: 'Contact & FAQ' },
         { href: '/feedback', label: 'Feedback' },
