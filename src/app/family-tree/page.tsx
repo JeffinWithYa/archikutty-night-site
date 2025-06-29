@@ -55,12 +55,9 @@ export default function FamilyTree() {
                                 If you have family photos, stories, or genealogy information you'd like to contribute,
                                 please reach out to us!
                             </p>
-                            <a
-                                href="/contact"
-                                className="inline-block bg-white text-purple-600 font-semibold py-2 px-6 rounded-full hover:bg-gray-50 transition-colors duration-200"
-                            >
-                                Contact Us
-                            </a>
+                            <div className="inline-block bg-white text-purple-600 font-semibold py-2 px-6 rounded-full text-lg">
+                                Contact: info@archikutty.com
+                            </div>
                         </div>
                     </div>
                 </div>
