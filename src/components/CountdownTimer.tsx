@@ -3,8 +3,8 @@
 import { useState, useEffect } from 'react';
 
 const CountdownTimer = () => {
-    // Set reunion date to December 27th, 2024
-    const reunionDate = new Date('2025-12-27T10:00:00').getTime();
+    // Set reunion date to December 27th, 2025 at 6:00 PM
+    const reunionDate = new Date('2025-12-27T18:00:00').getTime();
 
     const [timeLeft, setTimeLeft] = useState({
         days: 0,
@@ -73,7 +73,7 @@ const CountdownTimer = () => {
                     🎉 Get ready for an amazing celebration! 🎉
                 </p>
                 <p className="text-sm text-gray-700 mt-2 font-medium">
-                    December 27th, 2024 at 10:00 AM
+                    December 27th, 2025 at 6:00 PM
                 </p>
             </div>
         </div>
