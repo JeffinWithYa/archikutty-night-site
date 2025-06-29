@@ -2,19 +2,11 @@ export default function ContactPage() {
     const faqs = [
         {
             question: "What time does the reunion start?",
-            answer: "The reunion starts at 10:00 AM with registration and welcome activities."
-        },
-        {
-            question: "Is there a dress code?",
-            answer: "Casual and comfortable attire is perfect! Feel free to wear something that represents your personality."
+            answer: "The reunion starts at 6:00 PM."
         },
         {
             question: "Will food be provided?",
-            answer: "Yes! We'll have lunch and dinner provided, including vegetarian and dietary restriction options."
-        },
-        {
-            question: "Can I bring my children?",
-            answer: "Absolutely! This is a family-friendly event with activities for all ages."
+            answer: "Yes! We'll have dinner provided, including vegetarian and dietary restriction options."
         },
         {
             question: "Is there parking available?",
