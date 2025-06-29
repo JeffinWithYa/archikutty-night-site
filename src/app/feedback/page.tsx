@@ -20,20 +20,12 @@ export default function FeedbackPage() {
                         suggestions, and thoughts about the reunion. Your voice matters to us!
                     </p>
 
-                    <div className="grid md:grid-cols-2 gap-8 mt-12">
+                    <div className="grid md:grid-cols-1 gap-8 mt-12">
                         <div className="bg-gradient-to-br from-purple-100 to-pink-100 p-6 rounded-xl">
                             <div className="text-3xl mb-4">💡</div>
                             <h3 className="text-xl font-semibold text-gray-800 mb-2">Share Ideas</h3>
                             <p className="text-gray-600">
                                 Suggest activities, games, or special moments you'd like to see at the reunion
-                            </p>
-                        </div>
-
-                        <div className="bg-gradient-to-br from-pink-100 to-purple-100 p-6 rounded-xl">
-                            <div className="text-3xl mb-4">⭐</div>
-                            <h3 className="text-xl font-semibold text-gray-800 mb-2">Rate & Review</h3>
-                            <p className="text-gray-600">
-                                After the event, share your experience and help us improve future reunions
                             </p>
                         </div>
                     </div>
@@ -45,20 +37,8 @@ export default function FeedbackPage() {
                         <p className="text-gray-600 mb-6">
                             Have feedback or suggestions right now? We'd love to hear from you!
                         </p>
-
-                        <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                            <a
-                                href="/contact"
-                                className="inline-block bg-gradient-to-r from-purple-600 to-pink-600 text-white font-semibold py-3 px-6 rounded-lg shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200"
-                            >
-                                Contact Us
-                            </a>
-                            <a
-                                href="mailto:info@archikutty.com"
-                                className="inline-block border-2 border-purple-600 text-purple-600 font-semibold py-3 px-6 rounded-lg hover:bg-purple-600 hover:text-white transition-all duration-200"
-                            >
-                                Send Email
-                            </a>
+                        <div className="inline-block bg-gradient-to-r from-purple-600 to-pink-600 text-white font-semibold py-3 px-6 rounded-lg shadow-lg text-lg">
+                            Contact: info@archikutty.com
                         </div>
                     </div>
                 </div>
