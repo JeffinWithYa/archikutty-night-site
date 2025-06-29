@@ -45,7 +45,6 @@ export default function ContactPage() {
                                 <div>
                                     <h3 className="font-semibold text-gray-800">Email</h3>
                                     <p className="text-gray-600">info@archikutty.com</p>
-                                    <p className="text-sm text-gray-500">We'll respond within 24 hours</p>
                                 </div>
                             </div>
 
