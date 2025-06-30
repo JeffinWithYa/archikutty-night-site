@@ -1,5 +1,3 @@
-'use client';
-
 const VideoHero = () => {
     return (
         <div className="relative h-screen flex items-center justify-center overflow-hidden">
@@ -52,27 +50,7 @@ const VideoHero = () => {
                 </div>
             </div>
 
-            {/* Video Controls (optional - positioned at bottom right) */}
-            <div className="absolute bottom-20 right-8 z-20">
-                <button
-                    onClick={(e) => {
-                        const video = document.querySelector('video') as HTMLVideoElement;
-                        if (video) {
-                            if (video.paused) {
-                                video.play();
-                                e.currentTarget.innerHTML = '⏸️';
-                            } else {
-                                video.pause();
-                                e.currentTarget.innerHTML = '▶️';
-                            }
-                        }
-                    }}
-                    className="bg-black/50 hover:bg-black/70 text-white p-3 rounded-full backdrop-blur-sm transition-all duration-200"
-                    title="Play/Pause video"
-                >
-                    ⏸️
-                </button>
-            </div>
+
 
             {/* Scroll indicator */}
             <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 text-white animate-bounce">
