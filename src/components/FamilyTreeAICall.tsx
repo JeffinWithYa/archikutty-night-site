@@ -36,10 +36,14 @@ const FamilyTreeAICall: React.FC<FamilyTreeAICallProps> = ({ onClose, mode }) =>
     const [audioStatus, setAudioStatus] = useState<'idle' | 'connecting' | 'connected' | 'error'>('idle');
     const [isListening, setIsListening] = useState(false);
     const [currentTranscript, setCurrentTranscript] = useState('');
+    const [timeRemaining, setTimeRemaining] = useState(0);
     const peerConnectionRef = useRef<RTCPeerConnection | null>(null);
     const dataChannelRef = useRef<RTCDataChannel | null>(null);
     const mediaStreamRef = useRef<MediaStream | null>(null);
     const audioContextRef = useRef<AudioContext | null>(null);
+    const callTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+    const countdownIntervalRef = useRef<NodeJS.Timeout | null>(null);
+    const hasInitialResponseRef = useRef<boolean>(false);
 
     useEffect(() => {
         chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -53,6 +57,14 @@ const FamilyTreeAICall: React.FC<FamilyTreeAICallProps> = ({ onClose, mode }) =>
     }, []);
 
     const cleanup = () => {
+        if (callTimeoutRef.current) {
+            clearTimeout(callTimeoutRef.current);
+            callTimeoutRef.current = null;
+        }
+        if (countdownIntervalRef.current) {
+            clearInterval(countdownIntervalRef.current);
+            countdownIntervalRef.current = null;
+        }
         if (peerConnectionRef.current) {
             peerConnectionRef.current.close();
             peerConnectionRef.current = null;
@@ -69,6 +81,8 @@ const FamilyTreeAICall: React.FC<FamilyTreeAICallProps> = ({ onClose, mode }) =>
             audioContextRef.current.close();
             audioContextRef.current = null;
         }
+        setTimeRemaining(0);
+        hasInitialResponseRef.current = false;
     };
 
     // WebRTC Audio call functions
@@ -143,9 +157,35 @@ const FamilyTreeAICall: React.FC<FamilyTreeAICallProps> = ({ onClose, mode }) =>
                 };
 
                 setTimeout(() => {
-                    dataChannel.send(JSON.stringify(startMessage));
-                    console.log('[WEBRTC] Sent initial greeting to start conversation');
+                    if (!hasInitialResponseRef.current) {
+                        dataChannel.send(JSON.stringify(startMessage));
+                        hasInitialResponseRef.current = true;
+                        console.log('[WEBRTC] Sent initial greeting to start conversation');
+                    }
                 }, 1000); // Small delay to ensure connection is fully established
+
+                // Set up auto-disconnect after 5 minutes
+                const callDuration = 5 * 60 * 1000; // 5 minutes
+                setTimeRemaining(300); // 5 minutes in seconds
+
+                callTimeoutRef.current = setTimeout(() => {
+                    console.log('[WEBRTC] Auto-disconnecting after 5 minutes');
+                    stopAudioCall();
+                    setMessages(prev => [...prev, {
+                        sender: 'ai',
+                        text: 'Our family tree session has ended. Thank you for sharing your information!'
+                    }]);
+                }, callDuration);
+
+                // Start countdown timer
+                countdownIntervalRef.current = setInterval(() => {
+                    setTimeRemaining(prev => {
+                        if (prev <= 1) {
+                            return 0;
+                        }
+                        return prev - 1;
+                    });
+                }, 1000);
             };
 
             dataChannel.onmessage = (event) => {
@@ -154,6 +194,10 @@ const FamilyTreeAICall: React.FC<FamilyTreeAICallProps> = ({ onClose, mode }) =>
                     console.log('[WEBRTC] Data channel message:', data.type, data);
 
                     switch (data.type) {
+                        case 'session.created':
+                            // Ensure we're in connected state when session is created
+                            setAudioStatus('connected');
+                            break;
                         case 'conversation.item.created':
                             if (data.item.type === 'message' && data.item.role === 'assistant') {
                                 if (data.item.content?.[0]?.text) {
@@ -187,6 +231,9 @@ const FamilyTreeAICall: React.FC<FamilyTreeAICallProps> = ({ onClose, mode }) =>
                         case 'error':
                             console.error('[WEBRTC] OpenAI error:', data.error);
                             setAudioStatus('error');
+                            setTimeout(() => {
+                                stopAudioCall();
+                            }, 2000); // Auto-disconnect on error after 2 seconds
                             break;
                     }
                 } catch (err) {
@@ -223,29 +270,21 @@ const FamilyTreeAICall: React.FC<FamilyTreeAICallProps> = ({ onClose, mode }) =>
 
                 switch (peerConnection.connectionState) {
                     case 'connected':
-                        setAudioStatus('connected');
-                        setIsListening(true);
-
-                        // Fallback: Send initial greeting via connection state if data channel didn't work
-                        setTimeout(() => {
-                            if (dataChannelRef.current?.readyState === 'open') {
-                                const startMessage = {
-                                    type: 'response.create',
-                                    response: {
-                                        modalities: ['audio', 'text'],
-                                        instructions: 'Start the family tree interview by greeting the user and asking for their full name. Be warm and welcoming.'
-                                    }
-                                };
-                                dataChannelRef.current.send(JSON.stringify(startMessage));
-                                console.log('[WEBRTC] Sent fallback initial greeting');
-                            }
-                        }, 2000);
+                        // Don't override if already connected via data channel
+                        if (audioStatus !== 'connected') {
+                            setAudioStatus('connected');
+                            setIsListening(true);
+                        }
                         break;
                     case 'disconnected':
+                        setAudioStatus('idle');
+                        setIsListening(false);
+                        break;
                     case 'failed':
                     case 'closed':
-                        setAudioStatus('error');
+                        setAudioStatus('idle');
                         setIsListening(false);
+                        cleanup();
                         break;
                 }
             };
@@ -451,10 +490,29 @@ const FamilyTreeAICall: React.FC<FamilyTreeAICallProps> = ({ onClose, mode }) =>
                                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                                     </svg>
-                                    End Call
+                                    {audioStatus === 'connecting' ? 'Cancel' : 'End Call'}
+                                </button>
+                            )}
+
+                            {audioStatus === 'error' && (
+                                <button
+                                    onClick={() => setAudioStatus('idle')}
+                                    className="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-6 rounded-lg transition-colors flex items-center gap-2"
+                                >
+                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                                    </svg>
+                                    Try Again
                                 </button>
                             )}
                         </div>
+
+                        {/* Time Remaining */}
+                        {audioStatus === 'connected' && timeRemaining > 0 && (
+                            <div className="text-center text-sm text-gray-600">
+                                Time remaining: {Math.floor(timeRemaining / 60)}:{(timeRemaining % 60).toString().padStart(2, '0')}
+                            </div>
+                        )}
 
                         {/* Listening Indicator */}
                         {isListening && (

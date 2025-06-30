@@ -1,4 +1,4 @@
-import type { NextApiRequest, NextApiResponse } from 'next';
+import { NextRequest, NextResponse } from 'next/server';
 import OpenAI from 'openai';
 import AWS from 'aws-sdk';
 
@@ -14,17 +14,15 @@ const s3 = new AWS.S3({
 
 const SYSTEM_PROMPT = `You are a helpful family tree assistant. Your job is to ask questions and gather as much information as possible to place the user in their family tree. Ask about names, parents, grandparents, siblings, birthplaces, and any known relatives or branches.`;
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-    if (req.method !== 'POST') {
-        return res.status(405).json({ error: 'Method not allowed' });
-    }
-
-    const { messages, sessionId } = req.body; // messages: [{role, content}], sessionId: string
-    if (!messages || !Array.isArray(messages)) {
-        return res.status(400).json({ error: 'Invalid messages' });
-    }
-
+export async function POST(request: NextRequest) {
     try {
+        const body = await request.json();
+        const { messages, sessionId } = body; // messages: [{role, content}], sessionId: string
+
+        if (!messages || !Array.isArray(messages)) {
+            return NextResponse.json({ error: 'Invalid messages' }, { status: 400 });
+        }
+
         // Call OpenAI
         const completion = await openai.chat.completions.create({
             model: 'gpt-4o',
@@ -46,9 +44,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         };
         await s3.putObject(s3Params).promise();
 
-        res.status(200).json({ aiMessage });
+        return NextResponse.json({ aiMessage });
     } catch (err: any) {
         console.error('API error:', err);
-        res.status(500).json({ error: 'Failed to get AI response' });
+        return NextResponse.json({ error: 'Failed to get AI response' }, { status: 500 });
     }
 } 

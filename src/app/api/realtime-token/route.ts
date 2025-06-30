@@ -1,4 +1,4 @@
-import type { NextApiRequest, NextApiResponse } from 'next';
+import { NextRequest, NextResponse } from 'next/server';
 
 interface RealtimeTokenResponse {
     token: string;
@@ -9,20 +9,13 @@ interface ErrorResponse {
     error: string;
 }
 
-export default async function handler(
-    req: NextApiRequest,
-    res: NextApiResponse<RealtimeTokenResponse | ErrorResponse>
-) {
-    if (req.method !== 'POST') {
-        return res.status(405).json({ error: 'Method not allowed' });
-    }
-
+export async function POST(request: NextRequest) {
     try {
         const openaiApiKey = process.env.OPENAI_API_KEY;
 
         if (!openaiApiKey) {
             console.error('OPENAI_API_KEY not found in environment variables');
-            return res.status(500).json({ error: 'OpenAI API key not configured' });
+            return NextResponse.json({ error: 'OpenAI API key not configured' }, { status: 500 });
         }
 
         // ⚠️  DEVELOPMENT ONLY - SECURITY WARNING ⚠️
@@ -43,7 +36,7 @@ export default async function handler(
         //     })
         // });
         // const sessionData = await response.json();
-        // return res.json({
+        // return NextResponse.json({
         //     token: sessionData.client_secret.value,
         //     expires_at: sessionData.expires_at
         // });
@@ -51,15 +44,15 @@ export default async function handler(
         console.log('⚠️  DEVELOPMENT MODE: Returning main OpenAI API key to browser');
         console.log('   For production, implement ephemeral tokens instead!');
 
-        return res.status(200).json({
+        return NextResponse.json({
             token: openaiApiKey,
             expires_at: Math.floor(Date.now() / 1000) + 3600 // 1 hour from now
         });
 
     } catch (error) {
         console.error('Failed to create realtime token:', error);
-        return res.status(500).json({
+        return NextResponse.json({
             error: 'Failed to create realtime token'
-        });
+        }, { status: 500 });
     }
 } 
