@@ -1,36 +1,44 @@
+'use client';
+
 const VideoHero = () => {
     return (
         <div className="relative h-screen flex items-center justify-center overflow-hidden">
-            {/* Video Background Placeholder */}
-            <div className="absolute inset-0 bg-gradient-to-br from-purple-600 via-pink-500 to-purple-700">
-                <div className="absolute inset-0 bg-black/20"></div>
-
-                {/* Placeholder for future video */}
-                <div className="absolute inset-0 flex items-center justify-center">
-                    <div className="text-center text-white/80">
-                        <div className="text-8xl mb-4">🎥</div>
-                        <p className="text-lg font-medium">Invitation Video Placeholder</p>
-                        <p className="text-sm opacity-75">Your beautiful invitation video will play here</p>
+            {/* Video Background */}
+            <video
+                className="absolute inset-0 w-full h-full object-cover"
+                autoPlay
+                muted
+                loop
+                playsInline
+                poster="/archikutty_invite.mp4" // Fallback poster
+            >
+                <source src="/archikutty_invite.mp4" type="video/mp4" />
+                {/* Fallback content for browsers that don't support video */}
+                <div className="absolute inset-0 bg-gradient-to-br from-purple-600 via-pink-500 to-purple-700">
+                    <div className="absolute inset-0 bg-black/20"></div>
+                    <div className="absolute inset-0 flex items-center justify-center">
+                        <div className="text-center text-white/80">
+                            <div className="text-8xl mb-4">🎥</div>
+                            <p className="text-lg font-medium">Archikutty Night 2025</p>
+                            <p className="text-sm opacity-75">Video not supported in this browser</p>
+                        </div>
                     </div>
                 </div>
+            </video>
 
-                {/* Animated decorative elements */}
-                <div className="absolute top-20 left-20 w-4 h-4 bg-white/20 rounded-full animate-pulse"></div>
-                <div className="absolute top-40 right-32 w-6 h-6 bg-white/15 rounded-full animate-bounce"></div>
-                <div className="absolute bottom-32 left-40 w-3 h-3 bg-white/25 rounded-full animate-ping"></div>
-                <div className="absolute bottom-20 right-20 w-5 h-5 bg-white/20 rounded-full animate-pulse"></div>
-            </div>
+            {/* Video overlay for better text readability */}
+            <div className="absolute inset-0 bg-black/30"></div>
 
             {/* Hero Content */}
             <div className="relative z-10 text-center text-white px-4 sm:px-6 lg:px-8">
-                <h1 className="text-5xl md:text-7xl font-bold mb-6 tracking-tight">
+                <h1 className="text-5xl md:text-7xl font-bold mb-6 tracking-tight drop-shadow-lg">
                     <span className="block">Archikutty Night</span>
                     <span className="block bg-gradient-to-r from-yellow-300 to-pink-300 bg-clip-text text-transparent">
                         2025
                     </span>
                 </h1>
 
-                <p className="text-xl md:text-2xl mb-8 max-w-3xl mx-auto leading-relaxed">
+                <p className="text-xl md:text-2xl mb-8 max-w-3xl mx-auto leading-relaxed drop-shadow-md">
                     A celebration of love, laughter, and lasting memories
                 </p>
 
@@ -42,6 +50,28 @@ const VideoHero = () => {
                         RSVP Today
                     </a>
                 </div>
+            </div>
+
+            {/* Video Controls (optional - positioned at bottom right) */}
+            <div className="absolute bottom-20 right-8 z-20">
+                <button
+                    onClick={(e) => {
+                        const video = document.querySelector('video') as HTMLVideoElement;
+                        if (video) {
+                            if (video.paused) {
+                                video.play();
+                                e.currentTarget.innerHTML = '⏸️';
+                            } else {
+                                video.pause();
+                                e.currentTarget.innerHTML = '▶️';
+                            }
+                        }
+                    }}
+                    className="bg-black/50 hover:bg-black/70 text-white p-3 rounded-full backdrop-blur-sm transition-all duration-200"
+                    title="Play/Pause video"
+                >
+                    ⏸️
+                </button>
             </div>
 
             {/* Scroll indicator */}
