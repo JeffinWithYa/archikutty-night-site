@@ -221,19 +221,25 @@ const FamilyTreeAICall: React.FC<FamilyTreeAICallProps> = ({ onClose, mode }) =>
                 }
             };
 
-            // Step 9: Create offer with the ephemeral token
+            // Step 9: Create offer and set local description
             console.log('[WEBRTC] Creating offer...');
             const offer = await peerConnection.createOffer();
+            await peerConnection.setLocalDescription(offer);
 
-            // Add the token to the SDP
-            const modifiedSdp = offer.sdp + `a=openai-ephemeral-token:${token}\r\n`;
-            const modifiedOffer = { type: offer.type, sdp: modifiedSdp } as RTCSessionDescriptionInit;
-
-            await peerConnection.setLocalDescription(modifiedOffer);
-
-            // Step 10: Send offer to OpenAI Realtime API
+            // Step 10: Send offer to OpenAI Realtime API (correct endpoint format)
             console.log('[WEBRTC] Sending offer to OpenAI...');
-            const realtimeResponse = await fetch('https://api.openai.com/v1/realtime/webrtc', {
+            const model = 'gpt-4o-realtime-preview-2024-12-17';
+            const voice = 'alloy';
+            const instructions = 'You are a helpful family tree assistant for the Archikutty family reunion. Ask questions to help place the user in the family tree. Keep responses conversational and brief.';
+
+            const baseUrl = 'https://api.openai.com/v1/realtime';
+            const queryParams = new URLSearchParams({
+                model: model,
+                voice: voice,
+                instructions: instructions
+            });
+
+            const realtimeResponse = await fetch(`${baseUrl}?${queryParams}`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/sdp',
