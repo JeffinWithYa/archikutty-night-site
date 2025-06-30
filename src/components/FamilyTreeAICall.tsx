@@ -30,6 +30,9 @@ const FamilyTreeAICall: React.FC<FamilyTreeAICallProps> = ({ onClose, mode }) =>
     const callTimeoutRef = useRef<NodeJS.Timeout | null>(null);
     const countdownIntervalRef = useRef<NodeJS.Timeout | null>(null);
     const hasInitialResponseRef = useRef<boolean>(false);
+    const callStartTimeRef = useRef<number | null>(null);
+    const audioRecorderRef = useRef<MediaRecorder | null>(null);
+    const recordedChunksRef = useRef<Blob[]>([]);
 
     useEffect(() => {
         chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -69,6 +72,14 @@ const FamilyTreeAICall: React.FC<FamilyTreeAICallProps> = ({ onClose, mode }) =>
         }
         setTimeRemaining(0);
         hasInitialResponseRef.current = false;
+        callStartTimeRef.current = null;
+
+        // Stop audio recording if active
+        if (audioRecorderRef.current && audioRecorderRef.current.state !== 'inactive') {
+            audioRecorderRef.current.stop();
+        }
+        audioRecorderRef.current = null;
+        recordedChunksRef.current = [];
     };
 
     // WebRTC Audio call functions
@@ -108,6 +119,29 @@ const FamilyTreeAICall: React.FC<FamilyTreeAICallProps> = ({ onClose, mode }) =>
             mediaStreamRef.current = stream;
             console.log('[WEBRTC] Got microphone access');
 
+            // Start recording the audio for S3 storage
+            try {
+                const recorder = new MediaRecorder(stream, {
+                    mimeType: 'audio/webm;codecs=opus'
+                });
+
+                recorder.ondataavailable = (event) => {
+                    if (event.data.size > 0) {
+                        recordedChunksRef.current.push(event.data);
+                    }
+                };
+
+                recorder.onstop = () => {
+                    console.log('[RECORDING] Audio recording stopped');
+                };
+
+                recorder.start(1000); // Collect data every 1 second
+                audioRecorderRef.current = recorder;
+                console.log('[RECORDING] Started audio recording for S3 storage');
+            } catch (recordingError) {
+                console.warn('[RECORDING] Failed to start audio recording:', recordingError);
+            }
+
             // Step 3: Create RTCPeerConnection
             const peerConnection = new RTCPeerConnection({
                 iceServers: [
@@ -133,6 +167,9 @@ const FamilyTreeAICall: React.FC<FamilyTreeAICallProps> = ({ onClose, mode }) =>
                 setAudioStatus('connected');
                 setIsListening(true);
 
+                // Track call start time
+                callStartTimeRef.current = Date.now();
+
                 // Send an initial message to start the conversation
                 const startMessage = {
                     type: 'response.create',
@@ -154,13 +191,13 @@ const FamilyTreeAICall: React.FC<FamilyTreeAICallProps> = ({ onClose, mode }) =>
                 const callDuration = 5 * 60 * 1000; // 5 minutes
                 setTimeRemaining(300); // 5 minutes in seconds
 
-                callTimeoutRef.current = setTimeout(() => {
+                callTimeoutRef.current = setTimeout(async () => {
                     console.log('[WEBRTC] Auto-disconnecting after 5 minutes');
-                    stopAudioCall();
                     setMessages(prev => [...prev, {
                         sender: 'ai',
                         text: 'Our family tree session has ended. Thank you for sharing your information!'
                     }]);
+                    await stopAudioCall();
                 }, callDuration);
 
                 // Start countdown timer
@@ -217,8 +254,8 @@ const FamilyTreeAICall: React.FC<FamilyTreeAICallProps> = ({ onClose, mode }) =>
                         case 'error':
                             console.error('[WEBRTC] OpenAI error:', data.error);
                             setAudioStatus('error');
-                            setTimeout(() => {
-                                stopAudioCall();
+                            setTimeout(async () => {
+                                await stopAudioCall();
                             }, 2000); // Auto-disconnect on error after 2 seconds
                             break;
                     }
@@ -324,8 +361,67 @@ const FamilyTreeAICall: React.FC<FamilyTreeAICallProps> = ({ onClose, mode }) =>
         }
     };
 
-    const stopAudioCall = () => {
+    // Function to save voice chat data to S3
+    const saveVoiceChatData = async () => {
+        try {
+            const callDuration = callStartTimeRef.current
+                ? Math.round((Date.now() - callStartTimeRef.current) / 1000)
+                : 0;
+
+            // Save transcript
+            if (messages.length > 0) {
+                const transcriptResponse = await fetch('/api/save-voice-transcript', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        messages,
+                        sessionId,
+                        callDuration,
+                        metadata: {
+                            userAgent: navigator.userAgent,
+                            timestamp: Date.now(),
+                            endReason: 'user_ended'
+                        }
+                    })
+                });
+
+                if (transcriptResponse.ok) {
+                    console.log('[S3] Voice transcript saved successfully');
+                } else {
+                    console.error('[S3] Failed to save voice transcript');
+                }
+            }
+
+            // Save raw audio if available
+            if (recordedChunksRef.current.length > 0) {
+                const audioBlob = new Blob(recordedChunksRef.current, { type: 'audio/webm' });
+                const formData = new FormData();
+                formData.append('audio', audioBlob, `voice-call-${sessionId}-${Date.now()}.webm`);
+                formData.append('sessionId', sessionId);
+                formData.append('callDuration', callDuration.toString());
+
+                const audioResponse = await fetch('/api/save-voice-audio', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (audioResponse.ok) {
+                    console.log('[S3] Voice audio saved successfully');
+                } else {
+                    console.error('[S3] Failed to save voice audio');
+                }
+            }
+        } catch (error) {
+            console.error('[S3] Error saving voice chat data:', error);
+        }
+    };
+
+    const stopAudioCall = async () => {
         console.log('[WEBRTC] Stopping audio call...');
+
+        // Save voice chat data before cleanup
+        await saveVoiceChatData();
+
         cleanup();
         setAudioStatus('idle');
         setIsListening(false);
