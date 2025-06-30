@@ -138,7 +138,7 @@ const FamilyTreeAICall: React.FC<FamilyTreeAICallProps> = ({ onClose, mode }) =>
                     type: 'response.create',
                     response: {
                         modalities: ['audio', 'text'],
-                        instructions: 'Introduce yourself as the AI assistant helping with the Archikutty family reunion. Explain that you will gather family information to help the Archikutty committee build and organize the family tree. Then ask for their full name to start. Be warm and conversational.'
+                        instructions: 'Introduce yourself as the AI assistant helping with the Archikutty family reunion. Explain that you will gather family information to help the Archikutty committee build and organize the family tree. Then ask for their full name to start. Be warm and conversational, and follow a systematic approach: 1) Full name, 2) Parents names, 3) Siblings names, then become more open-ended to fill gaps.'
                     }
                 };
 
@@ -284,7 +284,7 @@ const FamilyTreeAICall: React.FC<FamilyTreeAICallProps> = ({ onClose, mode }) =>
             console.log('[WEBRTC] Sending offer to OpenAI...');
             const model = 'gpt-4o-realtime-preview-2024-12-17';
             const voice = 'alloy';
-            const instructions = 'You are an AI assistant helping with the Archikutty family reunion. Your role is to gather family information that will be shared with the Archikutty committee to help them build and organize the complete family tree. Explain this purpose to users and then systematically collect information about their family connections, including their full name, parents, grandparents, siblings, birthplace, and other relatives. Be warm, conversational, and ask one question at a time. Always remind users that this information helps the committee organize the family tree for the reunion.';
+            const instructions = 'You are an AI assistant helping with the Archikutty family reunion. Your role is to gather family information that will be shared with the Archikutty committee to help them build and organize the complete family tree. Follow this systematic interview structure: 1) Start by asking for their full name, 2) Ask for parents full names, 3) Ask about siblings and their names, 4) Ask about grandparents, 5) Then become more open-ended asking about other relatives, family stories, birthplaces, or connections that might help place them in the Archikutty family tree. Be warm, conversational, ask one question at a time, and explain that this information helps the committee organize the family tree for the reunion.';
 
             const baseUrl = 'https://api.openai.com/v1/realtime';
             const queryParams = new URLSearchParams({
