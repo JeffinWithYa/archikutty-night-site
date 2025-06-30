@@ -15,7 +15,7 @@ const Navigation = () => {
         { href: '/family-tree', label: 'Family Tree' },
         { href: '/contact', label: 'Contact & FAQ' },
         { href: '/feedback', label: 'Feedback' },
-        { href: '/map', label: 'Where Are They Coming From' },
+        { href: '/map', label: 'Family World Map' },
         { href: '/budget', label: 'Budget' },
     ];
 
