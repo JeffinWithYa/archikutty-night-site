@@ -41,12 +41,6 @@ const VideoHero = () => {
                     >
                         RSVP Today
                     </a>
-                    <a
-                        href="/countdown"
-                        className="border-2 border-white text-white font-semibold py-4 px-8 rounded-full hover:bg-white hover:text-purple-700 transition-all duration-200"
-                    >
-                        View Countdown
-                    </a>
                 </div>
             </div>
 

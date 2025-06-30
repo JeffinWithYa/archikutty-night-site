@@ -34,3 +34,45 @@ You can check out [the Next.js GitHub repository](https://github.com/vercel/next
 The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
 
 Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+
+## OpenAI Realtime API Phone Call Feature
+
+This app includes a real-time phone call feature powered by OpenAI's Realtime API for the Family Tree page.
+
+### Setup
+
+1. **Add your OpenAI API key** to your `.env` file:
+   ```
+   OPENAI_API_KEY=sk-your-openai-api-key-here
+   REALTIME_PROXY_PORT=4000
+   ```
+
+2. **Install dependencies** (if not already done):
+   ```bash
+   npm install
+   ```
+
+### Running the Application
+
+To use the phone call feature, you need to run both the Next.js app and the WebSocket proxy server:
+
+```bash
+# Run both servers at once (recommended)
+npm run dev:full
+
+# Or run them separately in different terminals:
+# Terminal 1: Next.js app
+npm run dev
+
+# Terminal 2: WebSocket proxy server
+npm run proxy
+```
+
+### Usage
+
+1. Navigate to the Family Tree page
+2. Click "Start AI Agent Phone Call (Audio)" 
+3. Grant microphone permissions when prompted
+4. Have a real-time conversation with the AI agent about your family tree placement
+
+The AI will ask questions to help place you in the family tree and provide audio responses in real-time.

@@ -24,10 +24,13 @@ export default function FamilyTree() {
 
                 {/* AI Call Button */}
                 <div className="flex flex-col items-center gap-4 mb-10">
-                    <div className="bg-yellow-100 text-yellow-800 font-semibold py-4 px-8 rounded-full shadow text-lg text-center flex items-center justify-center gap-2">
+                    <button
+                        className="bg-gradient-to-r from-yellow-400 to-yellow-600 text-white font-bold py-3 px-8 rounded-full shadow-lg hover:scale-105 transition-transform text-lg flex items-center gap-2"
+                        onClick={() => setShowAICall(true)}
+                    >
                         <span role="img" aria-label="Phone" className="text-2xl">📞</span>
-                        AI Agent Phone Call (to help place you in the family tree) Coming Soon!
-                    </div>
+                        Start AI Agent Phone Call (Audio)
+                    </button>
                     <button
                         className="bg-gradient-to-r from-pink-600 to-purple-600 text-white font-bold py-3 px-8 rounded-full shadow-lg hover:scale-105 transition-transform text-lg"
                         onClick={() => setShowTextChat(true)}
