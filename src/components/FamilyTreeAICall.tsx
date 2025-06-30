@@ -550,6 +550,16 @@ const FamilyTreeAICall: React.FC<FamilyTreeAICallProps> = ({ onClose, mode }) =>
                     <p className="text-sm text-gray-600">
                         The AI will gather information about your family connections to help the Archikutty committee organize and update the family tree for the reunion.
                     </p>
+                    {mode === 'audio' && (
+                        <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg text-left">
+                            <p className="text-xs text-blue-800 font-medium mb-1">💡 Voice Chat Tips:</p>
+                            <ul className="text-xs text-blue-700 space-y-1">
+                                <li>• <strong>If you interrupt the AI:</strong> Just ask "please continue" or say your full name if it's the start</li>
+                                <li>• <strong>If the call drops:</strong> Simply click "Start Voice Call" again</li>
+                                <li>• <strong>Best results:</strong> Wait for the AI to finish speaking before responding</li>
+                            </ul>
+                        </div>
+                    )}
                 </div>
                 {/* Chat UI */}
                 <div className="flex-1 overflow-y-auto bg-gray-50 rounded-lg p-4 mb-4 border border-gray-200" style={{ minHeight: 200, maxHeight: 300 }}>
@@ -615,7 +625,10 @@ const FamilyTreeAICall: React.FC<FamilyTreeAICallProps> = ({ onClose, mode }) =>
                                     <span className="text-green-600">Connected - Speak freely!</span>
                                 </div>
                             ) : audioStatus === 'error' ? (
-                                <span className="text-red-600">Connection error. Please try again.</span>
+                                <div className="text-center">
+                                    <span className="text-red-600 block">Connection error occurred</span>
+                                    <span className="text-xs text-gray-500">Click "Try Again" to reconnect</span>
+                                </div>
                             ) : null}
                         </div>
 
@@ -660,8 +673,13 @@ const FamilyTreeAICall: React.FC<FamilyTreeAICallProps> = ({ onClose, mode }) =>
 
                         {/* Time Remaining */}
                         {audioStatus === 'connected' && timeRemaining > 0 && (
-                            <div className="text-center text-sm text-gray-600">
-                                Time remaining: {Math.floor(timeRemaining / 60)}:{(timeRemaining % 60).toString().padStart(2, '0')}
+                            <div className="text-center">
+                                <div className="text-sm text-gray-600 mb-1">
+                                    Time remaining: {Math.floor(timeRemaining / 60)}:{(timeRemaining % 60).toString().padStart(2, '0')}
+                                </div>
+                                <div className="text-xs text-gray-500">
+                                    💡 If conversation gets stuck, say "please continue" or your name
+                                </div>
                             </div>
                         )}
 
