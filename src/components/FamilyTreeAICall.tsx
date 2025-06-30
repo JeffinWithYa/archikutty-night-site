@@ -11,23 +11,9 @@ interface Message {
     text: string;
 }
 
-const initialQuestions = [
-    "Hi! I'm the Family Tree AI assistant for the Archikutty family reunion. I'm here to help figure out where you fit in our family tree!",
-    "Let's start with the basics - what is your full name?",
-    "Great! Now, can you tell me about your parents? What are their names?",
-    "Do you know your grandparents' names? This will help us connect you to the broader family tree.",
-    "Do you have any siblings? If so, what are their names?",
-    "Where were you born? This can help us place you geographically in the family.",
-    "Are there any other family members or relatives you know of that might help us connect you to the Archikutty family tree?"
-];
-
 const FamilyTreeAICall: React.FC<FamilyTreeAICallProps> = ({ onClose, mode }) => {
-    const [messages, setMessages] = useState<Message[]>([
-        { sender: 'ai', text: initialQuestions[0] },
-        { sender: 'ai', text: initialQuestions[1] }
-    ]);
+    const [messages, setMessages] = useState<Message[]>([]);
     const [input, setInput] = useState('');
-    const [questionIndex, setQuestionIndex] = useState(2);
     const [loading, setLoading] = useState(false);
     const [sessionId] = useState(() => uuidv4());
     const chatEndRef = useRef<HTMLDivElement>(null);
@@ -152,7 +138,7 @@ const FamilyTreeAICall: React.FC<FamilyTreeAICallProps> = ({ onClose, mode }) =>
                     type: 'response.create',
                     response: {
                         modalities: ['audio', 'text'],
-                        instructions: 'Greet the user warmly and start by asking their full name to begin building their family tree profile. Be conversational and welcoming.'
+                        instructions: 'Introduce yourself as the AI assistant helping with the Archikutty family reunion. Explain that you will gather family information to help the Archikutty committee build and organize the family tree. Then ask for their full name to start. Be warm and conversational.'
                     }
                 };
 
@@ -298,7 +284,7 @@ const FamilyTreeAICall: React.FC<FamilyTreeAICallProps> = ({ onClose, mode }) =>
             console.log('[WEBRTC] Sending offer to OpenAI...');
             const model = 'gpt-4o-realtime-preview-2024-12-17';
             const voice = 'alloy';
-            const instructions = 'You are a helpful family tree assistant for the Archikutty family reunion. Your goal is to systematically gather information to place the user in the family tree. Start by asking for their full name, then ask about their parents, grandparents, siblings, birthplace, and other family connections. Be warm, conversational, and ask one question at a time. Guide the conversation proactively.';
+            const instructions = 'You are an AI assistant helping with the Archikutty family reunion. Your role is to gather family information that will be shared with the Archikutty committee to help them build and organize the complete family tree. Explain this purpose to users and then systematically collect information about their family connections, including their full name, parents, grandparents, siblings, birthplace, and other relatives. Be warm, conversational, and ask one question at a time. Always remind users that this information helps the committee organize the family tree for the reunion.';
 
             const baseUrl = 'https://api.openai.com/v1/realtime';
             const queryParams = new URLSearchParams({
@@ -377,15 +363,8 @@ const FamilyTreeAICall: React.FC<FamilyTreeAICallProps> = ({ onClose, mode }) =>
                 setLoading(false);
             }
         } else {
-            // Simulate AI response with next question (audio mode placeholder)
-            setTimeout(() => {
-                if (questionIndex < initialQuestions.length) {
-                    setMessages(prev => [...prev, { sender: 'ai' as const, text: initialQuestions[questionIndex] }]);
-                    setQuestionIndex(q => q + 1);
-                } else {
-                    setMessages(prev => [...prev, { sender: 'ai' as const, text: "Thank you! We'll use this info to help place you in the family tree." }]);
-                }
-            }, 800);
+            // Audio mode - the AI will respond via WebRTC voice call
+            // No need for simulated responses since real AI handles this
         }
     };
 
@@ -403,13 +382,23 @@ const FamilyTreeAICall: React.FC<FamilyTreeAICallProps> = ({ onClose, mode }) =>
                     {mode === 'audio' ? 'AI Family Tree Call' : 'AI Family Tree Chat'}
                 </h2>
                 <div className="mb-4 text-center text-gray-700">
-                    <p>
-                        The AI agent will ask you questions to help place you in the family tree. Please answer as best as you can!
-                        {mode === 'audio' ? ' (WebRTC voice conversation)' : ' (Text chat only)'}
+                    <p className="mb-2">
+                        {mode === 'audio' ? 'Start a voice conversation' : 'Start a text chat'} with our AI agent to help build the Archikutty family tree!
+                    </p>
+                    <p className="text-sm text-gray-600">
+                        The AI will gather information about your family connections to help the Archikutty committee organize and update the family tree for the reunion.
                     </p>
                 </div>
                 {/* Chat UI */}
                 <div className="flex-1 overflow-y-auto bg-gray-50 rounded-lg p-4 mb-4 border border-gray-200" style={{ minHeight: 200, maxHeight: 300 }}>
+                    {messages.length === 0 && (
+                        <div className="text-center text-gray-500 italic py-8">
+                            {mode === 'audio'
+                                ? 'Click "Start Voice Call" to begin your conversation with the AI agent.'
+                                : 'Start typing to begin your conversation with the AI agent.'
+                            }
+                        </div>
+                    )}
                     {messages.map((msg, idx) => (
                         <div key={idx} className={`mb-2 flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
                             <div className={`px-4 py-2 rounded-lg ${msg.sender === 'user' ? 'bg-pink-200 text-gray-900' : 'bg-purple-100 text-purple-900'}`}>{msg.text}</div>
