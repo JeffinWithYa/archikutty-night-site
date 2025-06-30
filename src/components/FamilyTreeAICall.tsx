@@ -32,37 +32,70 @@ const FamilyTreeAICall: React.FC<FamilyTreeAICallProps> = ({ onClose, mode }) =>
     const [sessionId] = useState(() => uuidv4());
     const chatEndRef = useRef<HTMLDivElement>(null);
 
-    // Audio call state
+    // WebRTC Audio call state
     const [audioStatus, setAudioStatus] = useState<'idle' | 'connecting' | 'connected' | 'error'>('idle');
     const [isListening, setIsListening] = useState(false);
     const [currentTranscript, setCurrentTranscript] = useState('');
-    const wsRef = useRef<WebSocket | null>(null);
+    const peerConnectionRef = useRef<RTCPeerConnection | null>(null);
+    const dataChannelRef = useRef<RTCDataChannel | null>(null);
     const mediaStreamRef = useRef<MediaStream | null>(null);
+    const audioContextRef = useRef<AudioContext | null>(null);
 
     useEffect(() => {
         chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, [messages]);
 
-    // Cleanup effect for audio resources
+    // Cleanup effect for WebRTC resources
     useEffect(() => {
         return () => {
-            // Cleanup when component unmounts
-            if (wsRef.current) {
-                wsRef.current.close();
-            }
-            if (mediaStreamRef.current) {
-                mediaStreamRef.current.getTracks().forEach(track => track.stop());
-            }
+            cleanup();
         };
     }, []);
 
-    // Audio call functions
+    const cleanup = () => {
+        if (peerConnectionRef.current) {
+            peerConnectionRef.current.close();
+            peerConnectionRef.current = null;
+        }
+        if (dataChannelRef.current) {
+            dataChannelRef.current.close();
+            dataChannelRef.current = null;
+        }
+        if (mediaStreamRef.current) {
+            mediaStreamRef.current.getTracks().forEach(track => track.stop());
+            mediaStreamRef.current = null;
+        }
+        if (audioContextRef.current) {
+            audioContextRef.current.close();
+            audioContextRef.current = null;
+        }
+    };
+
+    // WebRTC Audio call functions
     const startAudioCall = async () => {
         try {
             setAudioStatus('connecting');
-            console.log('[AUDIO] Starting audio call...');
+            console.log('[WEBRTC] Starting WebRTC audio call...');
 
-            // Request microphone access
+            // Step 1: Get ephemeral token from our API
+            console.log('[WEBRTC] Fetching ephemeral token...');
+            const tokenResponse = await fetch('/api/realtime-token', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            if (!tokenResponse.ok) {
+                const error = await tokenResponse.json();
+                throw new Error(`Token fetch failed: ${error.error}`);
+            }
+
+            const { token } = await tokenResponse.json();
+            console.log('[WEBRTC] Got ephemeral token');
+
+            // Step 2: Get user media
+            console.log('[WEBRTC] Requesting microphone access...');
             const stream = await navigator.mediaDevices.getUserMedia({
                 audio: {
                     sampleRate: 24000,
@@ -73,282 +106,170 @@ const FamilyTreeAICall: React.FC<FamilyTreeAICallProps> = ({ onClose, mode }) =>
                 }
             });
             mediaStreamRef.current = stream;
+            console.log('[WEBRTC] Got microphone access');
 
-            // Connect to our WebSocket proxy
-            const ws = new WebSocket('ws://localhost:4000');
-            wsRef.current = ws;
+            // Step 3: Create RTCPeerConnection
+            const peerConnection = new RTCPeerConnection({
+                iceServers: [
+                    { urls: 'stun:stun.l.google.com:19302' }
+                ]
+            });
+            peerConnectionRef.current = peerConnection;
 
-            ws.onopen = () => {
-                console.log('[WS] Connected to proxy');
-                // Wait for session.created before sending session.update
+            // Step 4: Add audio track
+            stream.getAudioTracks().forEach(track => {
+                peerConnection.addTrack(track, stream);
+            });
+            console.log('[WEBRTC] Added audio track to peer connection');
+
+            // Step 5: Create data channel for events
+            const dataChannel = peerConnection.createDataChannel('realtime', {
+                ordered: true
+            });
+            dataChannelRef.current = dataChannel;
+
+            dataChannel.onopen = () => {
+                console.log('[WEBRTC] Data channel opened');
+                setAudioStatus('connected');
+                setIsListening(true);
             };
 
-            ws.onmessage = (event) => {
-                console.log('[WS] Raw message received, type:', typeof event.data, 'data:', event.data);
+            dataChannel.onmessage = (event) => {
+                try {
+                    const data = JSON.parse(event.data);
+                    console.log('[WEBRTC] Data channel message:', data.type, data);
 
-                // Handle binary data (could be JSON or audio)
-                if (event.data instanceof Blob) {
-                    console.log('[WS] Received Blob data, size:', event.data.size);
-                    const reader = new FileReader();
-                    reader.onload = () => {
-                        const text = reader.result as string;
-
-                        // Check if this Blob contains JSON
-                        if (text.startsWith('{')) {
-                            try {
-                                const data = JSON.parse(text);
-                                console.log('[WS] Blob contained JSON:', data.type, data);
-
-                                // Handle JSON events
-                                if (data.type === 'session.created') {
-                                    console.log('[WS] Session created, sending session.update');
-
-                                    // NOW send session configuration after receiving session.created
-                                    const sessionConfig = {
-                                        type: 'session.update',
-                                        session: {
-                                            modalities: ['audio', 'text'],
-                                            instructions: 'You are a helpful family tree assistant for the Archikutty family reunion. Ask questions to help place the user in the family tree. Keep responses conversational and brief.',
-                                            voice: 'alloy',
-                                            input_audio_format: 'pcm16',
-                                            output_audio_format: 'pcm16',
-                                            input_audio_transcription: { model: 'whisper-1' },
-                                            turn_detection: {
-                                                type: 'server_vad',
-                                                threshold: 0.5,
-                                                prefix_padding_ms: 300,
-                                                silence_duration_ms: 500
-                                            }
-                                        }
-                                    };
-
-                                    ws.send(JSON.stringify(sessionConfig));
-                                    console.log('[WS] Sent session.update configuration');
-                                } else if (data.type === 'session.updated') {
-                                    console.log('[WS] Session updated, ready to start conversation');
-                                    setAudioStatus('connected');
-                                    setIsListening(true);
-                                    startRecording();
-
-                                    // Start the conversation with a greeting
-                                    setTimeout(() => {
-                                        if (ws.readyState === WebSocket.OPEN) {
-                                            ws.send(JSON.stringify({
-                                                type: 'response.create',
-                                                response: {
-                                                    modalities: ['audio', 'text']
-                                                }
-                                            }));
-                                            console.log('[WS] Sent response.create to start conversation');
-                                        }
-                                    }, 500);
-                                } else if (data.type === 'response.audio.delta' && data.audio) {
-                                    playAudioChunk(data.audio);
-                                } else if (data.type === 'error') {
-                                    console.error('[WS] OpenAI error:', data.error);
-                                    setAudioStatus('error');
+                    switch (data.type) {
+                        case 'conversation.item.created':
+                            if (data.item.type === 'message' && data.item.role === 'assistant') {
+                                if (data.item.content?.[0]?.text) {
+                                    setMessages(prev => [...prev, {
+                                        sender: 'ai',
+                                        text: data.item.content[0].text
+                                    }]);
                                 }
-                                return;
-                            } catch (e) {
-                                console.log('[WS] Blob text is not JSON, treating as audio');
                             }
-                        }
-
-                        // If not JSON, treat as binary audio data
-                        console.log('[WS] Treating Blob as binary audio data');
-                        const audioBytes = new Uint8Array(text.length);
-                        for (let i = 0; i < text.length; i++) {
-                            audioBytes[i] = text.charCodeAt(i);
-                        }
-                        const base64Audio = btoa(String.fromCharCode(...audioBytes));
-                        playAudioChunk(base64Audio);
-                    };
-                    reader.readAsText(event.data); // Read as text first to check for JSON
-                    return;
-                }
-
-                // Handle text/JSON messages
-                if (typeof event.data === 'string') {
-                    try {
-                        const data = JSON.parse(event.data);
-                        console.log('[WS] Received JSON:', data.type, data);
-
-                        if (data.type === 'session.created') {
-                            console.log('[WS] Session created, sending session.update');
-
-                            // Send session configuration after receiving session.created
-                            const sessionConfig = {
-                                type: 'session.update',
-                                session: {
-                                    modalities: ['audio', 'text'],
-                                    instructions: 'You are a helpful family tree assistant for the Archikutty family reunion. Ask questions to help place the user in the family tree. Keep responses conversational and brief.',
-                                    voice: 'alloy',
-                                    input_audio_format: 'pcm16',
-                                    output_audio_format: 'pcm16',
-                                    input_audio_transcription: { model: 'whisper-1' },
-                                    turn_detection: {
-                                        type: 'server_vad',
-                                        threshold: 0.5,
-                                        prefix_padding_ms: 300,
-                                        silence_duration_ms: 500
-                                    }
-                                }
-                            };
-
-                            ws.send(JSON.stringify(sessionConfig));
-                            console.log('[WS] Sent session.update configuration');
-                        } else if (data.type === 'session.updated') {
-                            console.log('[WS] Session updated, ready to start conversation');
-                            setAudioStatus('connected');
-                            setIsListening(true);
-                            startRecording();
-
-                            // Start the conversation with a greeting
-                            setTimeout(() => {
-                                if (ws.readyState === WebSocket.OPEN) {
-                                    ws.send(JSON.stringify({
-                                        type: 'response.create',
-                                        response: {
-                                            modalities: ['audio', 'text']
-                                        }
-                                    }));
-                                    console.log('[WS] Sent response.create to start conversation');
-                                }
-                            }, 500);
-                        } else if (data.type === 'response.audio.delta' && data.audio) {
-                            // Handle AI audio response (base64 encoded)
-                            playAudioChunk(data.audio);
-                        } else if (data.type === 'conversation.item.created' && data.item.type === 'message' && data.item.role === 'assistant') {
-                            // Handle AI text response
-                            if (data.item.content?.[0]?.text) {
-                                setMessages(prev => [...prev, { sender: 'ai', text: data.item.content[0].text }]);
-                            }
-                        } else if (data.type === 'input_audio_buffer.speech_started') {
+                            break;
+                        case 'input_audio_buffer.speech_started':
                             setCurrentTranscript('Listening...');
-                        } else if (data.type === 'input_audio_buffer.speech_stopped') {
+                            break;
+                        case 'input_audio_buffer.speech_stopped':
                             setCurrentTranscript('Processing...');
-                        } else if (data.type === 'response.text.delta' && data.delta) {
-                            // Handle AI text response streaming
-                            setCurrentTranscript(prev => prev + data.delta);
-                        } else if (data.type === 'response.text.done') {
-                            // Complete text response
+                            break;
+                        case 'response.text.delta':
+                            if (data.delta) {
+                                setCurrentTranscript(prev => prev + data.delta);
+                            }
+                            break;
+                        case 'response.text.done':
                             if (currentTranscript) {
-                                setMessages(prev => [...prev, { sender: 'ai', text: currentTranscript }]);
+                                setMessages(prev => [...prev, {
+                                    sender: 'ai',
+                                    text: currentTranscript
+                                }]);
                                 setCurrentTranscript('');
                             }
-                        } else if (data.type === 'error') {
-                            console.error('[WS] OpenAI error:', data.error);
+                            break;
+                        case 'error':
+                            console.error('[WEBRTC] OpenAI error:', data.error);
                             setAudioStatus('error');
-                        }
-                    } catch (err) {
-                        console.warn('[WS] Failed to parse JSON message:', err);
+                            break;
                     }
+                } catch (err) {
+                    console.warn('[WEBRTC] Failed to parse data channel message:', err);
                 }
             };
 
-            ws.onerror = (error) => {
-                console.error('[WS] Error:', error);
-                setAudioStatus('error');
+            // Step 6: Handle remote audio stream
+            peerConnection.ontrack = (event) => {
+                console.log('[WEBRTC] Received remote audio track');
+                const [remoteStream] = event.streams;
+
+                // Create audio element and play remote stream
+                const audio = new Audio();
+                audio.srcObject = remoteStream;
+                audio.autoplay = true;
+
+                // Handle audio playback on mobile Safari
+                audio.play().catch(error => {
+                    console.warn('[WEBRTC] Audio autoplay failed, user interaction required:', error);
+                });
             };
 
-            ws.onclose = () => {
-                console.log('[WS] Connection closed');
-                setAudioStatus('idle');
-                setIsListening(false);
+            // Step 7: Handle ICE candidates
+            peerConnection.onicecandidate = (event) => {
+                if (event.candidate) {
+                    console.log('[WEBRTC] ICE candidate:', event.candidate);
+                }
             };
+
+            // Step 8: Handle connection state changes
+            peerConnection.onconnectionstatechange = () => {
+                console.log('[WEBRTC] Connection state:', peerConnection.connectionState);
+
+                switch (peerConnection.connectionState) {
+                    case 'connected':
+                        setAudioStatus('connected');
+                        setIsListening(true);
+                        break;
+                    case 'disconnected':
+                    case 'failed':
+                    case 'closed':
+                        setAudioStatus('error');
+                        setIsListening(false);
+                        break;
+                }
+            };
+
+            // Step 9: Create offer with the ephemeral token
+            console.log('[WEBRTC] Creating offer...');
+            const offer = await peerConnection.createOffer();
+
+            // Add the token to the SDP
+            const modifiedSdp = offer.sdp + `a=openai-ephemeral-token:${token}\r\n`;
+            const modifiedOffer = { type: offer.type, sdp: modifiedSdp } as RTCSessionDescriptionInit;
+
+            await peerConnection.setLocalDescription(modifiedOffer);
+
+            // Step 10: Send offer to OpenAI Realtime API
+            console.log('[WEBRTC] Sending offer to OpenAI...');
+            const realtimeResponse = await fetch('https://api.openai.com/v1/realtime/webrtc', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/sdp',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: peerConnection.localDescription?.sdp
+            });
+
+            if (!realtimeResponse.ok) {
+                throw new Error(`WebRTC handshake failed: ${realtimeResponse.status}`);
+            }
+
+            const answerSdp = await realtimeResponse.text();
+            console.log('[WEBRTC] Got answer from OpenAI');
+
+            // Step 11: Set remote description
+            await peerConnection.setRemoteDescription({
+                type: 'answer',
+                sdp: answerSdp
+            });
+
+            console.log('[WEBRTC] WebRTC connection established!');
 
         } catch (error) {
-            console.error('[AUDIO] Failed to start call:', error);
+            console.error('[WEBRTC] Failed to start call:', error);
             setAudioStatus('error');
+            cleanup();
         }
     };
 
     const stopAudioCall = () => {
-        console.log('[AUDIO] Stopping audio call...');
-
-        if (wsRef.current) {
-            wsRef.current.close();
-            wsRef.current = null;
-        }
-
-        if (mediaStreamRef.current) {
-            mediaStreamRef.current.getTracks().forEach(track => track.stop());
-            mediaStreamRef.current = null;
-        }
-
+        console.log('[WEBRTC] Stopping audio call...');
+        cleanup();
         setAudioStatus('idle');
         setIsListening(false);
         setCurrentTranscript('');
-    };
-
-    const startRecording = () => {
-        const stream = mediaStreamRef.current;
-        const ws = wsRef.current;
-
-        if (!stream || !ws) return;
-
-        const audioContext = new AudioContext({ sampleRate: 24000 });
-        const source = audioContext.createMediaStreamSource(stream);
-        const processor = audioContext.createScriptProcessor(4096, 1, 1);
-
-        processor.onaudioprocess = (e) => {
-            if (ws.readyState === WebSocket.OPEN) {
-                const inputData = e.inputBuffer.getChannelData(0);
-                const pcm16 = new Int16Array(inputData.length);
-
-                for (let i = 0; i < inputData.length; i++) {
-                    pcm16[i] = Math.max(-32768, Math.min(32767, inputData[i] * 32768));
-                }
-
-                const base64Audio = btoa(String.fromCharCode(...new Uint8Array(pcm16.buffer)));
-
-                ws.send(JSON.stringify({
-                    type: 'input_audio_buffer.append',
-                    audio: base64Audio
-                }));
-            }
-        };
-
-        source.connect(processor);
-        processor.connect(audioContext.destination);
-    };
-
-    const playAudioChunk = (base64Audio: string) => {
-        try {
-            // Decode base64 to binary data
-            const binaryString = atob(base64Audio);
-            const audioData = new Uint8Array(binaryString.length);
-            for (let i = 0; i < binaryString.length; i++) {
-                audioData[i] = binaryString.charCodeAt(i);
-            }
-
-            // Ensure we have an even number of bytes for 16-bit samples
-            if (audioData.length % 2 !== 0) {
-                console.warn('[AUDIO] Odd number of bytes, skipping incomplete sample');
-                return;
-            }
-
-            const audioContext = new AudioContext({ sampleRate: 24000 });
-            const numSamples = audioData.length / 2;
-            const buffer = audioContext.createBuffer(1, numSamples, 24000);
-            const channelData = buffer.getChannelData(0);
-
-            // Convert 16-bit PCM (little-endian) to float32
-            for (let i = 0; i < numSamples; i++) {
-                const sample = (audioData[i * 2 + 1] << 8) | audioData[i * 2];
-                // Convert signed 16-bit to float (-1.0 to 1.0)
-                channelData[i] = sample > 32767 ? (sample - 65536) / 32768.0 : sample / 32768.0;
-            }
-
-            const source = audioContext.createBufferSource();
-            source.buffer = buffer;
-            source.connect(audioContext.destination);
-            source.start();
-
-            console.log('[AUDIO] Playing audio chunk, bytes:', audioData.length, 'samples:', numSamples);
-        } catch (error) {
-            console.error('[AUDIO] Error playing audio chunk:', error);
-        }
     };
 
     const handleSend = async () => {
@@ -410,7 +331,7 @@ const FamilyTreeAICall: React.FC<FamilyTreeAICallProps> = ({ onClose, mode }) =>
                 <div className="mb-4 text-center text-gray-700">
                     <p>
                         The AI agent will ask you questions to help place you in the family tree. Please answer as best as you can!
-                        {mode === 'audio' ? ' (Voice conversation with AI)' : ' (Text chat only)'}
+                        {mode === 'audio' ? ' (WebRTC voice conversation)' : ' (Text chat only)'}
                     </p>
                 </div>
                 {/* Chat UI */}
