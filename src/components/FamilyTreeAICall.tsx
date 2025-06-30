@@ -12,13 +12,13 @@ interface Message {
 }
 
 const initialQuestions = [
-    "Hi! I'm the Family Tree AI agent. Let's figure out where you fit in our family tree!",
-    "What is your full name?",
-    "Who are your parents?",
-    "Do you know your grandparents' names?",
-    "Do you have siblings? What are their names?",
-    "Where were you born?",
-    "Are there any family branches or relatives you know of that might help us connect you?"
+    "Hi! I'm the Family Tree AI assistant for the Archikutty family reunion. I'm here to help figure out where you fit in our family tree!",
+    "Let's start with the basics - what is your full name?",
+    "Great! Now, can you tell me about your parents? What are their names?",
+    "Do you know your grandparents' names? This will help us connect you to the broader family tree.",
+    "Do you have any siblings? If so, what are their names?",
+    "Where were you born? This can help us place you geographically in the family.",
+    "Are there any other family members or relatives you know of that might help us connect you to the Archikutty family tree?"
 ];
 
 const FamilyTreeAICall: React.FC<FamilyTreeAICallProps> = ({ onClose, mode }) => {
@@ -132,6 +132,20 @@ const FamilyTreeAICall: React.FC<FamilyTreeAICallProps> = ({ onClose, mode }) =>
                 console.log('[WEBRTC] Data channel opened');
                 setAudioStatus('connected');
                 setIsListening(true);
+
+                // Send an initial message to start the conversation
+                const startMessage = {
+                    type: 'response.create',
+                    response: {
+                        modalities: ['audio', 'text'],
+                        instructions: 'Greet the user warmly and start by asking their full name to begin building their family tree profile. Be conversational and welcoming.'
+                    }
+                };
+
+                setTimeout(() => {
+                    dataChannel.send(JSON.stringify(startMessage));
+                    console.log('[WEBRTC] Sent initial greeting to start conversation');
+                }, 1000); // Small delay to ensure connection is fully established
             };
 
             dataChannel.onmessage = (event) => {
@@ -211,6 +225,21 @@ const FamilyTreeAICall: React.FC<FamilyTreeAICallProps> = ({ onClose, mode }) =>
                     case 'connected':
                         setAudioStatus('connected');
                         setIsListening(true);
+
+                        // Fallback: Send initial greeting via connection state if data channel didn't work
+                        setTimeout(() => {
+                            if (dataChannelRef.current?.readyState === 'open') {
+                                const startMessage = {
+                                    type: 'response.create',
+                                    response: {
+                                        modalities: ['audio', 'text'],
+                                        instructions: 'Start the family tree interview by greeting the user and asking for their full name. Be warm and welcoming.'
+                                    }
+                                };
+                                dataChannelRef.current.send(JSON.stringify(startMessage));
+                                console.log('[WEBRTC] Sent fallback initial greeting');
+                            }
+                        }, 2000);
                         break;
                     case 'disconnected':
                     case 'failed':
@@ -230,7 +259,7 @@ const FamilyTreeAICall: React.FC<FamilyTreeAICallProps> = ({ onClose, mode }) =>
             console.log('[WEBRTC] Sending offer to OpenAI...');
             const model = 'gpt-4o-realtime-preview-2024-12-17';
             const voice = 'alloy';
-            const instructions = 'You are a helpful family tree assistant for the Archikutty family reunion. Ask questions to help place the user in the family tree. Keep responses conversational and brief.';
+            const instructions = 'You are a helpful family tree assistant for the Archikutty family reunion. Your goal is to systematically gather information to place the user in the family tree. Start by asking for their full name, then ask about their parents, grandparents, siblings, birthplace, and other family connections. Be warm, conversational, and ask one question at a time. Guide the conversation proactively.';
 
             const baseUrl = 'https://api.openai.com/v1/realtime';
             const queryParams = new URLSearchParams({
