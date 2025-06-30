@@ -13,11 +13,50 @@ export default function RSVPPage() {
         message: ''
     });
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [submitStatus, setSubmitStatus] = useState<'idle' | 'success' | 'error'>('idle');
+    const [errorMessage, setErrorMessage] = useState('');
+
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        // For now, just show an alert - in real implementation, this would submit to a backend
-        alert('Thank you for your RSVP! We\'ll be in touch soon.');
-        console.log('RSVP submitted:', formData);
+        setIsSubmitting(true);
+        setSubmitStatus('idle');
+        setErrorMessage('');
+
+        try {
+            const response = await fetch('/api/rsvp', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(formData),
+            });
+
+            const result = await response.json();
+
+            if (response.ok) {
+                setSubmitStatus('success');
+                // Reset form
+                setFormData({
+                    name: '',
+                    email: '',
+                    attending: '',
+                    guests: '1',
+                    dietary: '',
+                    location: '',
+                    message: ''
+                });
+            } else {
+                setSubmitStatus('error');
+                setErrorMessage(result.error || 'Failed to submit RSVP. Please try again.');
+            }
+        } catch (error) {
+            setSubmitStatus('error');
+            setErrorMessage('Network error. Please check your connection and try again.');
+            console.error('RSVP submission error:', error);
+        } finally {
+            setIsSubmitting(false);
+        }
     };
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
@@ -157,11 +196,49 @@ export default function RSVPPage() {
                             />
                         </div>
 
+                        {/* Status Messages */}
+                        {submitStatus === 'success' && (
+                            <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-4">
+                                <div className="flex items-center">
+                                    <div className="text-green-600 text-2xl mr-3">✅</div>
+                                    <div>
+                                        <h4 className="text-green-800 font-semibold">RSVP Submitted Successfully!</h4>
+                                        <p className="text-green-700 text-sm">
+                                            Thank you! Your RSVP has been recorded and saved to our system.
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {submitStatus === 'error' && (
+                            <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
+                                <div className="flex items-center">
+                                    <div className="text-red-600 text-2xl mr-3">❌</div>
+                                    <div>
+                                        <h4 className="text-red-800 font-semibold">Submission Failed</h4>
+                                        <p className="text-red-700 text-sm">{errorMessage}</p>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
                         <button
                             type="submit"
-                            className="w-full bg-gradient-to-r from-purple-600 to-pink-600 text-white font-semibold py-4 px-8 rounded-lg shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200"
+                            disabled={isSubmitting}
+                            className={`w-full font-semibold py-4 px-8 rounded-lg shadow-lg transition-all duration-200 ${isSubmitting
+                                ? 'bg-gray-400 cursor-not-allowed'
+                                : 'bg-gradient-to-r from-purple-600 to-pink-600 text-white hover:shadow-xl transform hover:scale-105'
+                                }`}
                         >
-                            Submit RSVP
+                            {isSubmitting ? (
+                                <div className="flex items-center justify-center">
+                                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
+                                    Submitting RSVP...
+                                </div>
+                            ) : (
+                                'Submit RSVP'
+                            )}
                         </button>
                     </form>
                 </div>

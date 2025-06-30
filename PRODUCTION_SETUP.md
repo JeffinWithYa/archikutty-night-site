@@ -16,7 +16,7 @@ The application now uses OpenAI's ephemeral tokens for secure production deploym
 # OpenAI Configuration
 OPENAI_API_KEY=your_openai_api_key_here
 
-# AWS S3 Configuration (for transcript/audio storage)
+# AWS S3 Configuration (for transcript/audio and RSVP storage)
 AWS_ACCESS_KEY_ID=your_aws_access_key
 AWS_SECRET_ACCESS_KEY=your_aws_secret_key
 AWS_REGION=your_aws_region
@@ -30,6 +30,7 @@ AWS_S3_BUCKET_NAME=your_s3_bucket_name
 - [ ] Verify OpenAI API key has Realtime API access
 - [ ] Test ephemeral token creation works
 - [ ] Confirm S3 file uploads work correctly
+- [ ] Test RSVP form submission and S3 storage
 - [ ] Set up monitoring for API usage and costs
 
 ### 📊 Data Storage Structure
@@ -38,7 +39,8 @@ AWS_S3_BUCKET_NAME=your_s3_bucket_name
 S3 Bucket:
 ├── family-tree-chats/          # Text chat transcripts (JSON)
 ├── family-tree-voice-chats/    # Voice call transcripts (JSON)
-└── family-tree-voice-audio/    # Voice call recordings (WebM)
+├── family-tree-voice-audio/    # Voice call recordings (WebM)
+└── rsvp-submissions/           # RSVP form submissions (JSON)
 ```
 
 ### 🔧 Features Ready for Production
@@ -50,11 +52,12 @@ S3 Bucket:
 - **Systematic Interviews** - Structured family information gathering
 - **Time Limits** - 5-minute session limits with countdown
 - **Data Retention** - All conversations saved for committee review
+- **RSVP System** - Complete form submission with S3 data storage
 
 ### ⚠️ Cost Considerations
 
 - **OpenAI Realtime API** - Charges per minute of voice conversation
-- **AWS S3** - Storage costs for transcripts and audio files
+- **AWS S3** - Storage costs for transcripts, audio files, and RSVP data
 - **Bandwidth** - WebRTC audio streaming costs
 
 ### 🎯 Ready for Production Use!
