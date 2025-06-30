@@ -33,6 +33,8 @@ const FamilyTreeAICall: React.FC<FamilyTreeAICallProps> = ({ onClose, mode }) =>
     const callStartTimeRef = useRef<number | null>(null);
     const audioRecorderRef = useRef<MediaRecorder | null>(null);
     const recordedChunksRef = useRef<Blob[]>([]);
+    const mixerRef = useRef<any>(null);
+    const remoteAudioRef = useRef<HTMLAudioElement | null>(null);
 
     useEffect(() => {
         chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -80,6 +82,13 @@ const FamilyTreeAICall: React.FC<FamilyTreeAICallProps> = ({ onClose, mode }) =>
         }
         audioRecorderRef.current = null;
         recordedChunksRef.current = [];
+        mixerRef.current = null;
+
+        if (remoteAudioRef.current) {
+            remoteAudioRef.current.pause();
+            remoteAudioRef.current.srcObject = null;
+            remoteAudioRef.current = null;
+        }
     };
 
     // WebRTC Audio call functions
@@ -119,9 +128,21 @@ const FamilyTreeAICall: React.FC<FamilyTreeAICallProps> = ({ onClose, mode }) =>
             mediaStreamRef.current = stream;
             console.log('[WEBRTC] Got microphone access');
 
-            // Start recording the audio for S3 storage
+            // Create audio context for mixing local and remote audio
             try {
-                const recorder = new MediaRecorder(stream, {
+                const audioContext = new AudioContext();
+                audioContextRef.current = audioContext;
+
+                // Create destination for mixed audio
+                const mixer = audioContext.createMediaStreamDestination();
+                mixerRef.current = mixer;
+
+                // Add local microphone to mixer
+                const localSource = audioContext.createMediaStreamSource(stream);
+                localSource.connect(mixer);
+
+                // Start recording with just local audio for now (remote will be added when received)
+                const recorder = new MediaRecorder(mixer.stream, {
                     mimeType: 'audio/webm;codecs=opus'
                 });
 
@@ -137,7 +158,7 @@ const FamilyTreeAICall: React.FC<FamilyTreeAICallProps> = ({ onClose, mode }) =>
 
                 recorder.start(1000); // Collect data every 1 second
                 audioRecorderRef.current = recorder;
-                console.log('[RECORDING] Started audio recording for S3 storage');
+                console.log('[RECORDING] Started mixed audio recording for S3 storage');
             } catch (recordingError) {
                 console.warn('[RECORDING] Failed to start audio recording:', recordingError);
             }
@@ -237,6 +258,14 @@ const FamilyTreeAICall: React.FC<FamilyTreeAICallProps> = ({ onClose, mode }) =>
                         case 'input_audio_buffer.speech_stopped':
                             setCurrentTranscript('Processing...');
                             break;
+                        case 'conversation.item.input_audio_transcription.completed':
+                            if (data.transcript) {
+                                setMessages(prev => [...prev, {
+                                    sender: 'user',
+                                    text: data.transcript
+                                }]);
+                            }
+                            break;
                         case 'response.text.delta':
                             if (data.delta) {
                                 setCurrentTranscript(prev => prev + data.delta);
@@ -244,6 +273,26 @@ const FamilyTreeAICall: React.FC<FamilyTreeAICallProps> = ({ onClose, mode }) =>
                             break;
                         case 'response.text.done':
                             if (currentTranscript) {
+                                setMessages(prev => [...prev, {
+                                    sender: 'ai',
+                                    text: currentTranscript
+                                }]);
+                                setCurrentTranscript('');
+                            }
+                            break;
+                        case 'response.audio_transcript.delta':
+                            if (data.delta) {
+                                setCurrentTranscript(prev => prev + data.delta);
+                            }
+                            break;
+                        case 'response.audio_transcript.done':
+                            if (data.transcript) {
+                                setMessages(prev => [...prev, {
+                                    sender: 'ai',
+                                    text: data.transcript
+                                }]);
+                                setCurrentTranscript('');
+                            } else if (currentTranscript) {
                                 setMessages(prev => [...prev, {
                                     sender: 'ai',
                                     text: currentTranscript
@@ -273,11 +322,23 @@ const FamilyTreeAICall: React.FC<FamilyTreeAICallProps> = ({ onClose, mode }) =>
                 const audio = new Audio();
                 audio.srcObject = remoteStream;
                 audio.autoplay = true;
+                remoteAudioRef.current = audio;
 
                 // Handle audio playback on mobile Safari
                 audio.play().catch(error => {
                     console.warn('[WEBRTC] Audio autoplay failed, user interaction required:', error);
                 });
+
+                // Add remote audio to our recording mixer
+                try {
+                    if (audioContextRef.current && mixerRef.current) {
+                        const remoteSource = audioContextRef.current.createMediaStreamSource(remoteStream);
+                        remoteSource.connect(mixerRef.current);
+                        console.log('[RECORDING] Added remote audio to mixer');
+                    }
+                } catch (mixerError) {
+                    console.warn('[RECORDING] Failed to add remote audio to mixer:', mixerError);
+                }
             };
 
             // Step 7: Handle ICE candidates
@@ -369,6 +430,7 @@ const FamilyTreeAICall: React.FC<FamilyTreeAICallProps> = ({ onClose, mode }) =>
                 : 0;
 
             // Save transcript
+            console.log('[S3] Attempting to save transcript with', messages.length, 'messages');
             if (messages.length > 0) {
                 const transcriptResponse = await fetch('/api/save-voice-transcript', {
                     method: 'POST',
@@ -386,15 +448,22 @@ const FamilyTreeAICall: React.FC<FamilyTreeAICallProps> = ({ onClose, mode }) =>
                 });
 
                 if (transcriptResponse.ok) {
-                    console.log('[S3] Voice transcript saved successfully');
+                    const result = await transcriptResponse.json();
+                    console.log('[S3] Voice transcript saved successfully:', result);
                 } else {
-                    console.error('[S3] Failed to save voice transcript');
+                    const error = await transcriptResponse.text();
+                    console.error('[S3] Failed to save voice transcript:', error);
                 }
+            } else {
+                console.log('[S3] No messages to save for transcript');
             }
 
             // Save raw audio if available
+            console.log('[S3] Attempting to save audio with', recordedChunksRef.current.length, 'chunks');
             if (recordedChunksRef.current.length > 0) {
                 const audioBlob = new Blob(recordedChunksRef.current, { type: 'audio/webm' });
+                console.log('[S3] Audio blob size:', audioBlob.size, 'bytes');
+
                 const formData = new FormData();
                 formData.append('audio', audioBlob, `voice-call-${sessionId}-${Date.now()}.webm`);
                 formData.append('sessionId', sessionId);
@@ -406,10 +475,14 @@ const FamilyTreeAICall: React.FC<FamilyTreeAICallProps> = ({ onClose, mode }) =>
                 });
 
                 if (audioResponse.ok) {
-                    console.log('[S3] Voice audio saved successfully');
+                    const result = await audioResponse.json();
+                    console.log('[S3] Voice audio saved successfully:', result);
                 } else {
-                    console.error('[S3] Failed to save voice audio');
+                    const error = await audioResponse.text();
+                    console.error('[S3] Failed to save voice audio:', error);
                 }
+            } else {
+                console.log('[S3] No audio chunks to save');
             }
         } catch (error) {
             console.error('[S3] Error saving voice chat data:', error);
