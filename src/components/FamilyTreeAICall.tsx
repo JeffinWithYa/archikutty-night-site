@@ -195,8 +195,8 @@ const FamilyTreeAICall: React.FC<FamilyTreeAICallProps> = ({ onClose, mode }) =>
                 const startMessage = {
                     type: 'response.create',
                     response: {
-                        modalities: ['audio', 'text'],
-                        instructions: 'Introduce yourself as the AI assistant helping with the Archikutty family reunion. Explain that you will gather family information to help the Archikutty committee build and organize the family tree. Then ask for their full name to start. Be warm and conversational, and follow a systematic approach: 1) Full name, 2) Parents names, 3) Siblings names, then become more open-ended to fill gaps.'
+                        modalities: ['audio', 'text']
+                        // Instructions are now pre-configured in the ephemeral token
                     }
                 };
 
@@ -204,7 +204,7 @@ const FamilyTreeAICall: React.FC<FamilyTreeAICallProps> = ({ onClose, mode }) =>
                     if (!hasInitialResponseRef.current) {
                         dataChannel.send(JSON.stringify(startMessage));
                         hasInitialResponseRef.current = true;
-                        console.log('[WEBRTC] Sent initial greeting to start conversation');
+                        console.log('[WEBRTC] Sent initial greeting using ephemeral token configuration');
                     }
                 }, 1000); // Small delay to ensure connection is fully established
 
@@ -378,20 +378,13 @@ const FamilyTreeAICall: React.FC<FamilyTreeAICallProps> = ({ onClose, mode }) =>
             const offer = await peerConnection.createOffer();
             await peerConnection.setLocalDescription(offer);
 
-            // Step 10: Send offer to OpenAI Realtime API (correct endpoint format)
-            console.log('[WEBRTC] Sending offer to OpenAI...');
-            const model = 'gpt-4o-realtime-preview-2024-12-17';
-            const voice = 'alloy';
-            const instructions = 'You are an AI assistant helping with the Archikutty family reunion. Your role is to gather family information that will be shared with the Archikutty committee to help them build and organize the complete family tree. Follow this systematic interview structure: 1) Start by asking for their full name, 2) Ask for parents full names, 3) Ask about siblings and their names, 4) Ask about grandparents, 5) Then become more open-ended asking about other relatives, family stories, birthplaces, or connections that might help place them in the Archikutty family tree. Be warm, conversational, ask one question at a time, and explain that this information helps the committee organize the family tree for the reunion.';
+            // Step 10: Send offer to OpenAI Realtime API (using ephemeral token)
+            console.log('[WEBRTC] Sending offer to OpenAI with ephemeral token...');
 
+            // No need to send model, voice, or instructions - they're configured in the ephemeral token
             const baseUrl = 'https://api.openai.com/v1/realtime';
-            const queryParams = new URLSearchParams({
-                model: model,
-                voice: voice,
-                instructions: instructions
-            });
 
-            const realtimeResponse = await fetch(`${baseUrl}?${queryParams}`, {
+            const realtimeResponse = await fetch(baseUrl, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/sdp',

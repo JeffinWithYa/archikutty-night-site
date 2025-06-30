@@ -18,35 +18,46 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: 'OpenAI API key not configured' }, { status: 500 });
         }
 
-        // ⚠️  DEVELOPMENT ONLY - SECURITY WARNING ⚠️
-        // Currently returning the main OpenAI API key directly to the browser.
-        // This exposes your main API key in client-side code and browser dev tools.
-        // 
-        // For PRODUCTION, you should implement ephemeral tokens:
-        // 
-        // const response = await fetch('https://api.openai.com/v1/realtime/sessions', {
-        //     method: 'POST',
-        //     headers: {
-        //         'Authorization': `Bearer ${openaiApiKey}`,
-        //         'Content-Type': 'application/json',
-        //     },
-        //     body: JSON.stringify({
-        //         model: 'gpt-4o-realtime-preview-2024-12-17',
-        //         voice: 'alloy'
-        //     })
-        // });
-        // const sessionData = await response.json();
-        // return NextResponse.json({
-        //     token: sessionData.client_secret.value,
-        //     expires_at: sessionData.expires_at
-        // });
+        // 🔒 PRODUCTION SECURITY: Using ephemeral tokens
+        // Create a temporary session token that expires automatically
+        console.log('🔒 Creating ephemeral token for secure production use');
 
-        console.log('⚠️  DEVELOPMENT MODE: Returning main OpenAI API key to browser');
-        console.log('   For production, implement ephemeral tokens instead!');
+        const sessionResponse = await fetch('https://api.openai.com/v1/realtime/sessions', {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${openaiApiKey}`,
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                model: 'gpt-4o-realtime-preview-2024-12-17',
+                voice: 'alloy',
+                instructions: 'You are an AI assistant helping with the Archikutty family reunion. Your role is to gather family information that will be shared with the Archikutty committee to help them build and organize the complete family tree. Follow this systematic interview structure: 1) Start by asking for their full name, 2) Ask for parents full names, 3) Ask about siblings and their names, 4) Ask about grandparents, 5) Then become more open-ended asking about other relatives, family stories, birthplaces, or connections that might help place them in the Archikutty family tree. Be warm, conversational, ask one question at a time, and explain that this information helps the committee organize the family tree for the reunion.',
+                input_audio_format: 'pcm16',
+                output_audio_format: 'pcm16',
+                input_audio_transcription: {
+                    model: 'whisper-1'
+                },
+                turn_detection: {
+                    type: 'server_vad',
+                    threshold: 0.5,
+                    prefix_padding_ms: 300,
+                    silence_duration_ms: 200
+                }
+            })
+        });
+
+        if (!sessionResponse.ok) {
+            const errorText = await sessionResponse.text();
+            console.error('OpenAI session creation failed:', sessionResponse.status, errorText);
+            throw new Error(`Failed to create OpenAI session: ${sessionResponse.status} ${errorText}`);
+        }
+
+        const sessionData = await sessionResponse.json();
+        console.log('✅ Ephemeral token created successfully, expires at:', new Date(sessionData.expires_at * 1000).toISOString());
 
         return NextResponse.json({
-            token: openaiApiKey,
-            expires_at: Math.floor(Date.now() / 1000) + 3600 // 1 hour from now
+            token: sessionData.client_secret.value,
+            expires_at: sessionData.expires_at
         });
 
     } catch (error) {
