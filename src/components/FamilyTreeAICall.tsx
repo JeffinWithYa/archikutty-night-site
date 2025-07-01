@@ -641,7 +641,7 @@ const FamilyTreeAICall: React.FC<FamilyTreeAICallProps> = ({ onClose, mode }) =>
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
-            <div className="bg-white rounded-2xl shadow-2xl p-8 max-w-lg w-full relative flex flex-col">
+            <div className="bg-white rounded-2xl shadow-2xl p-8 max-w-6xl w-full relative flex flex-col" style={{ maxHeight: '90vh' }}>
                 <button
                     className="absolute top-4 right-4 text-gray-500 hover:text-gray-800 text-2xl"
                     onClick={onClose}
@@ -656,8 +656,11 @@ const FamilyTreeAICall: React.FC<FamilyTreeAICallProps> = ({ onClose, mode }) =>
                     <p className="mb-2">
                         {mode === 'audio' ? 'Start a voice conversation' : 'Start a text chat'} with our AI agent to help build the Archikutty family tree!
                     </p>
-                    <p className="text-sm text-gray-600">
-                        The AI will gather information about your family connections to help the Archikutty committee organize and update the family tree for the reunion.
+                    <p className="text-sm text-gray-600 mb-2">
+                        Begin by sharing your name, and watch your family tree grow as you tell us about your relatives. The AI creates visual diagrams as you chat!
+                    </p>
+                    <p className="text-xs text-gray-500">
+                        Your conversation helps the Archikutty committee organize the family tree for the reunion.
                     </p>
                     {mode === 'audio' && (
                         <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg text-left">
@@ -670,43 +673,65 @@ const FamilyTreeAICall: React.FC<FamilyTreeAICallProps> = ({ onClose, mode }) =>
                         </div>
                     )}
                 </div>
-                {/* Chat UI */}
-                <div className="flex-1 overflow-y-auto bg-gray-50 rounded-lg p-4 mb-4 border border-gray-200" style={{ minHeight: 200, maxHeight: 300 }}>
-                    {messages.length === 0 && (
-                        <div className="text-center text-gray-500 italic py-8">
-                            {mode === 'audio'
-                                ? 'Click "Start Voice Call" to begin your conversation with the AI agent.'
-                                : 'Start typing to begin your conversation with the AI agent.'
-                            }
-                        </div>
-                    )}
-                    {messages.map((msg, idx) => (
-                        <div key={idx} className={`mb-2 ${msg.sender === 'user' ? 'flex justify-end' : ''}`}>
-                            {msg.sender === 'user' ? (
-                                <div className="px-4 py-2 rounded-lg bg-pink-200 text-gray-900">{msg.text}</div>
-                            ) : (
-                                <div>
-                                    <div className="px-4 py-2 rounded-lg bg-purple-100 text-purple-900 mb-2">{msg.text}</div>
-                                    {msg.mermaidDiagram && msg.mermaidDiagram.code && (
-                                        <ErrorBoundary>
-                                            <MermaidDiagram
-                                                code={msg.mermaidDiagram.code}
-                                                description={msg.mermaidDiagram.description || 'Family tree diagram'}
-                                            />
-                                        </ErrorBoundary>
+                {/* Chat and Family Tree Layout */}
+                <div className="flex-1 flex gap-4 mb-4" style={{ minHeight: 400, maxHeight: 500 }}>
+                    {/* Chat Messages */}
+                    <div className="flex-1 flex flex-col">
+                        <h3 className="text-sm font-semibold text-gray-700 mb-2">💬 Conversation</h3>
+                        <div className="flex-1 overflow-y-auto bg-gray-50 rounded-lg p-4 border border-gray-200">
+                            {messages.length === 0 && (
+                                <div className="text-center text-gray-500 italic py-8">
+                                    {mode === 'audio'
+                                        ? 'Click "Start Voice Call" and say your name to begin.'
+                                        : 'Type your full name to start building your family tree.'
+                                    }
+                                </div>
+                            )}
+                            {messages.map((msg, idx) => (
+                                <div key={idx} className={`mb-2 ${msg.sender === 'user' ? 'flex justify-end' : ''}`}>
+                                    {msg.sender === 'user' ? (
+                                        <div className="px-4 py-2 rounded-lg bg-pink-200 text-gray-900 max-w-xs">{msg.text}</div>
+                                    ) : (
+                                        <div className="px-4 py-2 rounded-lg bg-purple-100 text-purple-900 max-w-xs">{msg.text}</div>
                                     )}
+                                </div>
+                            ))}
+                            {mode === 'audio' && currentTranscript && (
+                                <div className="mb-2 flex justify-start">
+                                    <div className="px-4 py-2 rounded-lg bg-blue-50 text-blue-700 italic border-l-4 border-blue-300 max-w-xs">
+                                        {currentTranscript}
+                                    </div>
+                                </div>
+                            )}
+                            <div ref={chatEndRef} />
+                        </div>
+                    </div>
+
+                    {/* Family Tree Diagrams */}
+                    <div className="flex-1 flex flex-col">
+                        <h3 className="text-sm font-semibold text-gray-700 mb-2">🌳 Your Family Tree</h3>
+                        <div className="flex-1 overflow-y-auto bg-gray-50 rounded-lg p-4 border border-gray-200">
+                            {messages.filter(msg => msg.mermaidDiagram).length === 0 ? (
+                                <div className="text-center text-gray-500 italic py-8">
+                                    Family tree diagrams will appear here as you share information
+                                </div>
+                            ) : (
+                                <div className="space-y-4">
+                                    {messages
+                                        .filter(msg => msg.mermaidDiagram && msg.mermaidDiagram.code)
+                                        .map((msg, idx) => (
+                                            <ErrorBoundary key={idx}>
+                                                <MermaidDiagram
+                                                    code={msg.mermaidDiagram!.code}
+                                                    description={msg.mermaidDiagram!.description || 'Family tree diagram'}
+                                                />
+                                            </ErrorBoundary>
+                                        ))
+                                    }
                                 </div>
                             )}
                         </div>
-                    ))}
-                    {mode === 'audio' && currentTranscript && (
-                        <div className="mb-2 flex justify-start">
-                            <div className="px-4 py-2 rounded-lg bg-blue-50 text-blue-700 italic border-l-4 border-blue-300">
-                                {currentTranscript}
-                            </div>
-                        </div>
-                    )}
-                    <div ref={chatEndRef} />
+                    </div>
                 </div>
                 {/* Text Input (Text Mode) */}
                 {mode === 'text' && (
@@ -716,7 +741,7 @@ const FamilyTreeAICall: React.FC<FamilyTreeAICallProps> = ({ onClose, mode }) =>
                             type="text"
                             value={input}
                             onChange={e => setInput(e.target.value)}
-                            placeholder="Type your answer..."
+                            placeholder={messages.length === 0 ? "Start by typing your full name..." : "Type your response..."}
                             autoFocus
                             disabled={loading}
                         />
