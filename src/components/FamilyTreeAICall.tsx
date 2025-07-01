@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { v4 as uuidv4 } from 'uuid';
+import MermaidDiagram from './MermaidDiagram';
 
 interface FamilyTreeAICallProps {
     onClose: () => void;
@@ -9,6 +10,10 @@ interface FamilyTreeAICallProps {
 interface Message {
     sender: 'ai' | 'user';
     text: string;
+    mermaidDiagram?: {
+        code: string;
+        description: string;
+    };
 }
 
 const FamilyTreeAICall: React.FC<FamilyTreeAICallProps> = ({ onClose, mode }) => {
@@ -249,6 +254,52 @@ const FamilyTreeAICall: React.FC<FamilyTreeAICallProps> = ({ onClose, mode }) =>
                                         sender: 'ai',
                                         text: data.item.content[0].text
                                     }]);
+                                }
+                            } else if (data.item.type === 'function_call') {
+                                // Handle function calls from the AI
+                                console.log('[WEBRTC] Function call received:', data.item);
+                                if (data.item.name === 'create_mermaid_diagram') {
+                                    try {
+                                        const args = JSON.parse(data.item.arguments);
+                                        const mermaidMessage: Message = {
+                                            sender: 'ai',
+                                            text: `I've created a family tree diagram! ${args.description}`,
+                                            mermaidDiagram: {
+                                                code: args.mermaid_code,
+                                                description: args.description
+                                            }
+                                        };
+                                        setMessages(prev => [...prev, mermaidMessage]);
+
+                                        // Send function output back to the conversation
+                                        const functionOutput = {
+                                            type: 'conversation.item.create',
+                                            item: {
+                                                type: 'function_call_output',
+                                                call_id: data.item.call_id,
+                                                output: JSON.stringify({
+                                                    success: true,
+                                                    message: 'Mermaid diagram created successfully and displayed to user'
+                                                })
+                                            }
+                                        };
+                                        dataChannel.send(JSON.stringify(functionOutput));
+                                    } catch (parseError) {
+                                        console.error('[WEBRTC] Error parsing function arguments:', parseError);
+                                        // Send error back to the conversation
+                                        const functionOutput = {
+                                            type: 'conversation.item.create',
+                                            item: {
+                                                type: 'function_call_output',
+                                                call_id: data.item.call_id,
+                                                output: JSON.stringify({
+                                                    success: false,
+                                                    error: 'Failed to parse diagram parameters'
+                                                })
+                                            }
+                                        };
+                                        dataChannel.send(JSON.stringify(functionOutput));
+                                    }
                                 }
                             }
                             break;
@@ -515,7 +566,12 @@ const FamilyTreeAICall: React.FC<FamilyTreeAICallProps> = ({ onClose, mode }) =>
                 });
                 const data = await res.json();
                 if (data.aiMessage) {
-                    setMessages(prev => [...prev, { sender: 'ai' as const, text: data.aiMessage }]);
+                    const newMessage: Message = {
+                        sender: 'ai' as const,
+                        text: data.aiMessage,
+                        ...(data.mermaidDiagram && { mermaidDiagram: data.mermaidDiagram })
+                    };
+                    setMessages(prev => [...prev, newMessage]);
                 } else {
                     setMessages(prev => [...prev, { sender: 'ai' as const, text: 'Sorry, there was an error getting a response.' }]);
                 }
@@ -572,8 +628,20 @@ const FamilyTreeAICall: React.FC<FamilyTreeAICallProps> = ({ onClose, mode }) =>
                         </div>
                     )}
                     {messages.map((msg, idx) => (
-                        <div key={idx} className={`mb-2 flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
-                            <div className={`px-4 py-2 rounded-lg ${msg.sender === 'user' ? 'bg-pink-200 text-gray-900' : 'bg-purple-100 text-purple-900'}`}>{msg.text}</div>
+                        <div key={idx} className={`mb-2 ${msg.sender === 'user' ? 'flex justify-end' : ''}`}>
+                            {msg.sender === 'user' ? (
+                                <div className="px-4 py-2 rounded-lg bg-pink-200 text-gray-900">{msg.text}</div>
+                            ) : (
+                                <div>
+                                    <div className="px-4 py-2 rounded-lg bg-purple-100 text-purple-900 mb-2">{msg.text}</div>
+                                    {msg.mermaidDiagram && (
+                                        <MermaidDiagram
+                                            code={msg.mermaidDiagram.code}
+                                            description={msg.mermaidDiagram.description}
+                                        />
+                                    )}
+                                </div>
+                            )}
                         </div>
                     ))}
                     {mode === 'audio' && currentTranscript && (

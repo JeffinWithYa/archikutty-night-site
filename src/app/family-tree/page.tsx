@@ -26,10 +26,25 @@ export default function FamilyTree() {
                 <div className="flex flex-col items-center gap-4 mb-10">
                     <div className="text-center mb-4">
                         <h2 className="text-2xl font-semibold text-gray-800 mb-2">Help Us Build the Family Tree</h2>
-                        <p className="text-gray-600 max-w-2xl mx-auto">
+                        <p className="text-gray-600 max-w-2xl mx-auto mb-4">
                             Share your family information with our AI assistant. Tell us about your parents, grandparents,
                             siblings, and any family stories you know. This helps us place you in the Archikutty family tree!
                         </p>
+
+                        {/* Privacy Disclaimer */}
+                        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 max-w-2xl mx-auto mb-6">
+                            <div className="flex items-start gap-3">
+                                <div className="text-blue-600 text-xl mt-0.5">🔒</div>
+                                <div className="text-left">
+                                    <h3 className="text-blue-800 font-semibold text-sm mb-1">Privacy Notice</h3>
+                                    <p className="text-blue-700 text-sm leading-relaxed">
+                                        <strong>Your conversations are recorded and stored</strong> to help the Archikutty committee
+                                        create a rich and detailed family tree. All information you share will be used exclusively
+                                        for family reunion planning and genealogy purposes. Your privacy is important to us.
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                     <button
                         className="bg-gradient-to-r from-yellow-400 to-yellow-600 text-white font-bold py-3 px-8 rounded-full shadow-lg hover:scale-105 transition-transform text-lg flex items-center gap-2"

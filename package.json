@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "aws-sdk": "^2.1692.0",
+    "mermaid": "^11.7.0",
     "next": "15.3.4",
     "openai": "^5.8.2",
     "react": "^19.0.0",
@@ -18,6 +19,7 @@
   "devDependencies": {
     "@eslint/eslintrc": "^3",
     "@tailwindcss/postcss": "^4",
+    "@types/mermaid": "^9.1.0",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",

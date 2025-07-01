@@ -31,7 +31,7 @@ export async function POST(request: NextRequest) {
             body: JSON.stringify({
                 model: 'gpt-4o-realtime-preview-2024-12-17',
                 voice: 'alloy',
-                instructions: 'You are an AI assistant helping with the Archikutty family reunion. Your role is to gather family information that will be shared with the Archikutty committee to help them build and organize the complete family tree. Follow this systematic interview structure: 1) Start by asking for their full name, 2) Ask for parents full names, 3) Ask about siblings and their names, 4) Ask about grandparents, 5) Then become more open-ended asking about other relatives, family stories, birthplaces, or connections that might help place them in the Archikutty family tree. Be warm, conversational, ask one question at a time, and explain that this information helps the committee organize the family tree for the reunion.',
+                instructions: 'You are an AI assistant helping with the Archikutty family reunion. Your role is to gather family information and create visual family tree diagrams using Mermaid syntax. Follow this systematic interview structure: 1) Start by asking for their full name, 2) Ask for parents full names, 3) Ask about siblings and their names, 4) Ask about grandparents, 5) Then become more open-ended asking about other relatives, family stories, birthplaces, or connections that might help place them in the Archikutty family tree. Be warm, conversational, ask one question at a time, and explain that this information helps the committee organize the family tree for the reunion. When you have enough family information to create or update a diagram, call the create_mermaid_diagram function with proper Mermaid syntax using "graph TD" for direction, clear node names in quotes, and "-->" for relationships.',
                 input_audio_format: 'pcm16',
                 output_audio_format: 'pcm16',
                 input_audio_transcription: {
@@ -42,7 +42,28 @@ export async function POST(request: NextRequest) {
                     threshold: 0.5,
                     prefix_padding_ms: 300,
                     silence_duration_ms: 200
-                }
+                },
+                tools: [
+                    {
+                        type: 'function',
+                        name: 'create_mermaid_diagram',
+                        description: 'Create or update a Mermaid diagram showing family relationships based on the information gathered so far. Call this whenever you have collected enough family information to visualize relationships.',
+                        parameters: {
+                            type: 'object',
+                            properties: {
+                                mermaid_code: {
+                                    type: 'string',
+                                    description: 'The Mermaid diagram code using proper syntax. Use "graph TD" for direction, clear node names in quotes, and "-->" for relationships.'
+                                },
+                                description: {
+                                    type: 'string',
+                                    description: 'A brief description of what this diagram shows (e.g., "Family tree showing John, his parents, and siblings")'
+                                }
+                            },
+                            required: ['mermaid_code', 'description']
+                        }
+                    }
+                ]
             })
         });
 
