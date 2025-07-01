@@ -87,6 +87,11 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: 'Invalid messages' }, { status: 400 });
         }
 
+        // Validate OpenAI API key
+        if (!process.env.OPENAI_API_KEY) {
+            throw new Error('OpenAI API key not configured');
+        }
+
         // Call OpenAI with function calling enabled
         const completion = await openai.chat.completions.create({
             model: 'gpt-4o',
@@ -99,6 +104,11 @@ export async function POST(request: NextRequest) {
             temperature: 0.7,
             parallel_tool_calls: false,
         });
+
+        // Validate OpenAI response
+        if (!completion.choices || completion.choices.length === 0) {
+            throw new Error('No response from OpenAI');
+        }
 
         const message = completion.choices[0]?.message;
         let aiMessage = message?.content || '';
@@ -121,7 +131,10 @@ export async function POST(request: NextRequest) {
                         description: args.description
                     };
 
-                    // Don't override the AI's response - let it provide its own text along with the function call
+                    // If no text response was provided with the function call, provide a default
+                    if (!aiMessage) {
+                        aiMessage = `I've created a family tree diagram! ${args.description}`;
+                    }
                 } catch (parseError) {
                     console.error('Error parsing function arguments:', parseError);
                     aiMessage = 'I tried to create a family tree diagram but encountered an error. Let me continue gathering your family information.';
@@ -129,27 +142,42 @@ export async function POST(request: NextRequest) {
             }
         }
 
+        // Ensure we always have a response message
+        if (!aiMessage) {
+            aiMessage = 'I understand. What family member would you like to tell me about?';
+        }
+
         // Save transcript to S3 (including function call if present)
-        const conversationEntry = {
-            role: 'assistant',
-            content: aiMessage,
-            ...(functionCall && { function_call: functionCall }),
-            ...(mermaidDiagram && { mermaid_diagram: mermaidDiagram })
-        };
+        try {
+            const conversationEntry = {
+                role: 'assistant',
+                content: aiMessage,
+                ...(functionCall && { function_call: functionCall }),
+                ...(mermaidDiagram && { mermaid_diagram: mermaidDiagram })
+            };
 
-        const transcript = JSON.stringify({
-            messages: [...messages, conversationEntry],
-            sessionId,
-            timestamp: Date.now()
-        }, null, 2);
+            const transcript = JSON.stringify({
+                messages: [...messages, conversationEntry],
+                sessionId,
+                timestamp: Date.now()
+            }, null, 2);
 
-        const s3Params = {
-            Bucket: process.env.AWS_S3_BUCKET_NAME!,
-            Key: `family-tree-chats/${sessionId || 'unknown'}-${Date.now()}.json`,
-            Body: transcript,
-            ContentType: 'application/json',
-        };
-        await s3.putObject(s3Params).promise();
+            // Only save to S3 if bucket name is configured
+            if (process.env.AWS_S3_BUCKET_NAME) {
+                const s3Params = {
+                    Bucket: process.env.AWS_S3_BUCKET_NAME,
+                    Key: `family-tree-chats/${sessionId || 'unknown'}-${Date.now()}.json`,
+                    Body: transcript,
+                    ContentType: 'application/json',
+                };
+                await s3.putObject(s3Params).promise();
+            } else {
+                console.warn('AWS_S3_BUCKET_NAME not configured, skipping S3 save');
+            }
+        } catch (s3Error) {
+            console.error('S3 save failed:', s3Error);
+            // Don't let S3 errors break the API response
+        }
 
         return NextResponse.json({
             aiMessage,
@@ -157,7 +185,21 @@ export async function POST(request: NextRequest) {
             functionCall
         });
     } catch (err: any) {
-        console.error('API error:', err);
-        return NextResponse.json({ error: 'Failed to get AI response' }, { status: 500 });
+        console.error('Family tree chat API error:', err);
+
+        // Provide more specific error messages
+        let errorMessage = 'Failed to get AI response';
+        if (err.message?.includes('OpenAI')) {
+            errorMessage = 'OpenAI service error';
+        } else if (err.message?.includes('API key')) {
+            errorMessage = 'API configuration error';
+        } else if (err.code === 'ENOTFOUND' || err.code === 'ECONNREFUSED') {
+            errorMessage = 'Network connection error';
+        }
+
+        return NextResponse.json({
+            error: errorMessage,
+            details: process.env.NODE_ENV === 'development' ? err.message : undefined
+        }, { status: 500 });
     }
 } 
