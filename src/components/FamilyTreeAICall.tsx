@@ -1,6 +1,59 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { v4 as uuidv4 } from 'uuid';
-import MermaidDiagram from './MermaidDiagram';
+import dynamic from 'next/dynamic';
+
+// Error boundary component for Mermaid diagrams
+class ErrorBoundary extends React.Component<
+    { children: React.ReactNode },
+    { hasError: boolean }
+> {
+    constructor(props: { children: React.ReactNode }) {
+        super(props);
+        this.state = { hasError: false };
+    }
+
+    static getDerivedStateFromError(_: Error) {
+        return { hasError: true };
+    }
+
+    componentDidCatch(error: Error, errorInfo: any) {
+        console.error('MermaidDiagram error:', error, errorInfo);
+    }
+
+    render() {
+        if (this.state.hasError) {
+            return (
+                <div className="bg-white border border-gray-200 rounded-lg p-4 my-3 shadow-sm">
+                    <div className="mb-3">
+                        <h4 className="text-sm font-semibold text-purple-700 mb-1">🌳 Family Tree Diagram</h4>
+                        <p className="text-xs text-gray-600">Error loading diagram</p>
+                    </div>
+                    <div className="overflow-x-auto bg-red-50 p-3 rounded border flex items-center justify-center" style={{ minHeight: '200px' }}>
+                        <div className="text-red-600 text-sm">Unable to display family tree diagram</div>
+                    </div>
+                </div>
+            );
+        }
+
+        return this.props.children;
+    }
+}
+
+// Dynamically import MermaidDiagram to avoid SSR issues
+const MermaidDiagram = dynamic(() => import('./MermaidDiagram'), {
+    ssr: false,
+    loading: () => (
+        <div className="bg-white border border-gray-200 rounded-lg p-4 my-3 shadow-sm">
+            <div className="mb-3">
+                <h4 className="text-sm font-semibold text-purple-700 mb-1">🌳 Family Tree Diagram</h4>
+                <p className="text-xs text-gray-600">Loading...</p>
+            </div>
+            <div className="overflow-x-auto bg-gray-50 p-3 rounded border flex items-center justify-center" style={{ minHeight: '200px' }}>
+                <div className="text-gray-500 text-sm">Loading diagram...</div>
+            </div>
+        </div>
+    )
+});
 
 interface FamilyTreeAICallProps {
     onClose: () => void;
@@ -634,11 +687,13 @@ const FamilyTreeAICall: React.FC<FamilyTreeAICallProps> = ({ onClose, mode }) =>
                             ) : (
                                 <div>
                                     <div className="px-4 py-2 rounded-lg bg-purple-100 text-purple-900 mb-2">{msg.text}</div>
-                                    {msg.mermaidDiagram && (
-                                        <MermaidDiagram
-                                            code={msg.mermaidDiagram.code}
-                                            description={msg.mermaidDiagram.description}
-                                        />
+                                    {msg.mermaidDiagram && msg.mermaidDiagram.code && (
+                                        <ErrorBoundary>
+                                            <MermaidDiagram
+                                                code={msg.mermaidDiagram.code}
+                                                description={msg.mermaidDiagram.description || 'Family tree diagram'}
+                                            />
+                                        </ErrorBoundary>
                                     )}
                                 </div>
                             )}
