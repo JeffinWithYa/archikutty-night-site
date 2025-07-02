@@ -20,6 +20,11 @@ export default function FamilyTree() {
                     <p className="text-xl text-gray-700 max-w-3xl mx-auto">
                         Discover your roots and see how we're all connected
                     </p>
+                    <div className="mt-6 max-w-2xl mx-auto">
+                        <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded px-4 py-2">
+                            <strong>Disclaimer:</strong> Voice calls and text conversations on this page are recorded to help build and improve the family tree. Please do not share sensitive personal information.
+                        </p>
+                    </div>
                 </div>
 
                 {/* AI Call Options */}
