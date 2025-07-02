@@ -23,6 +23,8 @@ const FamilyTreeAICall: React.FC<FamilyTreeAICallProps> = ({ onClose, mode }) =>
     const [isListening, setIsListening] = useState(false);
     const [currentTranscript, setCurrentTranscript] = useState('');
     const [timeRemaining, setTimeRemaining] = useState(0);
+    const [debugInfo, setDebugInfo] = useState('');
+    const [isDebugMode] = useState(true); // Enable debug mode
     const peerConnectionRef = useRef<RTCPeerConnection | null>(null);
     const dataChannelRef = useRef<RTCDataChannel | null>(null);
     const mediaStreamRef = useRef<MediaStream | null>(null);
@@ -223,6 +225,10 @@ const FamilyTreeAICall: React.FC<FamilyTreeAICallProps> = ({ onClose, mode }) =>
                 // Track call start time
                 callStartTimeRef.current = Date.now();
 
+                // DEBUG: Log data channel state
+                console.log('[DEBUG] Data channel state:', dataChannel.readyState);
+                console.log('[DEBUG] Data channel label:', dataChannel.label);
+
                 // Send an initial message to start the conversation
                 const startMessage = {
                     type: 'response.create',
@@ -234,9 +240,14 @@ const FamilyTreeAICall: React.FC<FamilyTreeAICallProps> = ({ onClose, mode }) =>
 
                 setTimeout(() => {
                     if (!hasInitialResponseRef.current) {
-                        dataChannel.send(JSON.stringify(startMessage));
-                        hasInitialResponseRef.current = true;
-                        console.log('[WEBRTC] Sent initial greeting using ephemeral token configuration');
+                        console.log('[DEBUG] Sending initial message:', JSON.stringify(startMessage, null, 2));
+                        try {
+                            dataChannel.send(JSON.stringify(startMessage));
+                            hasInitialResponseRef.current = true;
+                            console.log('[WEBRTC] Sent initial greeting using ephemeral token configuration');
+                        } catch (sendError) {
+                            console.error('[DEBUG] Failed to send initial message:', sendError);
+                        }
                     }
                 }, 1000); // Small delay to ensure connection is fully established
 
@@ -268,11 +279,70 @@ const FamilyTreeAICall: React.FC<FamilyTreeAICallProps> = ({ onClose, mode }) =>
                 try {
                     const data = JSON.parse(event.data);
                     console.log('[WEBRTC] Data channel message:', data.type, data);
+                    console.log('[DEBUG] Full message data:', JSON.stringify(data, null, 2));
 
                     switch (data.type) {
                         case 'session.created':
+                            console.log('[DEBUG] Session created successfully:', data);
                             // Ensure we're in connected state when session is created
                             setAudioStatus('connected');
+
+                            // Send a test message to trigger AI response
+                            setTimeout(() => {
+                                const testMessage = {
+                                    type: 'conversation.item.create',
+                                    item: {
+                                        type: 'message',
+                                        role: 'user',
+                                        content: [{ type: 'input_text', text: 'Hello, can you hear me?' }]
+                                    }
+                                };
+                                console.log('[DEBUG] Sending test message:', JSON.stringify(testMessage, null, 2));
+                                try {
+                                    dataChannel.send(JSON.stringify(testMessage));
+
+                                    // Then trigger response
+                                    const responseMessage = {
+                                        type: 'response.create',
+                                        response: {
+                                            modalities: ['audio', 'text']
+                                        }
+                                    };
+                                    setTimeout(() => {
+                                        console.log('[DEBUG] Triggering response:', JSON.stringify(responseMessage, null, 2));
+                                        dataChannel.send(JSON.stringify(responseMessage));
+                                    }, 500);
+                                } catch (error) {
+                                    console.error('[DEBUG] Failed to send test message:', error);
+                                }
+                            }, 1000);
+                            break;
+                        case 'session.updated':
+                            console.log('[DEBUG] Session updated:', data);
+                            break;
+                        case 'response.created':
+                            console.log('[DEBUG] Response created:', data);
+                            break;
+                        case 'response.output_item.added':
+                            console.log('[DEBUG] Response output item added:', data);
+                            break;
+                        case 'response.output_item.done':
+                            console.log('[DEBUG] Response output item done:', data);
+                            break;
+                        case 'response.done':
+                            console.log('[DEBUG] Response done:', data);
+                            break;
+                        case 'response.audio.delta':
+                            console.log('[DEBUG] Audio delta received - length:', data.delta ? data.delta.length : 'no delta');
+                            break;
+                        case 'response.audio.done':
+                            console.log('[DEBUG] Audio response done:', data);
+                            break;
+                        case 'input_audio_buffer.committed':
+                            console.log('[DEBUG] Input audio buffer committed:', data);
+                            break;
+                        case 'input_audio_buffer.cleared':
+                            console.log('[DEBUG] Input audio buffer cleared:', data);
                             break;
                         case 'conversation.item.created':
                             if (data.item.type === 'message' && data.item.role === 'assistant') {
@@ -375,19 +445,32 @@ const FamilyTreeAICall: React.FC<FamilyTreeAICallProps> = ({ onClose, mode }) =>
                 audio.style.display = 'none';
                 document.body.appendChild(audio);
 
+                // DEBUG: Log audio stream details
+                console.log('[DEBUG] Remote stream tracks:', remoteStream.getTracks());
+                console.log('[DEBUG] Audio element created:', audio);
+                console.log('[DEBUG] Audio element volume:', audio.volume);
+                console.log('[DEBUG] Audio element muted:', audio.muted);
+
                 // Handle audio playback with user interaction if needed
                 const playAudio = async () => {
                     try {
-                        await audio.play();
+                        console.log('[DEBUG] Attempting to play audio...');
+                        const playPromise = audio.play();
+                        await playPromise;
                         console.log('[AUDIO] Remote audio playing successfully');
+                        console.log('[DEBUG] Audio currentTime:', audio.currentTime);
+                        console.log('[DEBUG] Audio paused:', audio.paused);
+                        console.log('[DEBUG] Audio ended:', audio.ended);
                     } catch (error) {
                         console.warn('[AUDIO] Audio autoplay failed, trying with user interaction:', error);
 
                         // Create a one-time click handler to start audio
                         const clickHandler = async () => {
                             try {
+                                console.log('[DEBUG] User clicked, attempting audio play...');
                                 await audio.play();
                                 console.log('[AUDIO] Audio started after user interaction');
+                                console.log('[DEBUG] Audio playing after click - paused:', audio.paused);
                                 document.removeEventListener('click', clickHandler);
                             } catch (playError) {
                                 console.error('[AUDIO] Failed to play audio even with user interaction:', playError);
@@ -398,6 +481,15 @@ const FamilyTreeAICall: React.FC<FamilyTreeAICallProps> = ({ onClose, mode }) =>
                         console.log('[AUDIO] Click anywhere to enable audio playback');
                     }
                 };
+
+                // Add event listeners for debugging
+                audio.addEventListener('loadstart', () => console.log('[DEBUG] Audio loadstart'));
+                audio.addEventListener('loadeddata', () => console.log('[DEBUG] Audio loadeddata'));
+                audio.addEventListener('canplay', () => console.log('[DEBUG] Audio canplay'));
+                audio.addEventListener('playing', () => console.log('[DEBUG] Audio playing'));
+                audio.addEventListener('pause', () => console.log('[DEBUG] Audio paused'));
+                audio.addEventListener('ended', () => console.log('[DEBUG] Audio ended'));
+                audio.addEventListener('error', (e) => console.error('[DEBUG] Audio error:', e));
 
                 playAudio();
 
@@ -556,6 +648,47 @@ const FamilyTreeAICall: React.FC<FamilyTreeAICallProps> = ({ onClose, mode }) =>
 
     // Assign save function to ref for cleanup
     saveOnUnmountRef.current = saveVoiceChatData;
+
+    // Debug functions
+    const sendDebugMessage = (message: string) => {
+        if (dataChannelRef.current && dataChannelRef.current.readyState === 'open') {
+            try {
+                dataChannelRef.current.send(message);
+                setDebugInfo(`Sent: ${message}`);
+                console.log('[DEBUG] Manual message sent:', message);
+            } catch (error) {
+                setDebugInfo(`Error sending: ${error}`);
+                console.error('[DEBUG] Failed to send manual message:', error);
+            }
+        } else {
+            setDebugInfo('Data channel not open');
+        }
+    };
+
+    const enableInputAudio = () => {
+        const message = JSON.stringify({
+            type: 'input_audio_buffer.append',
+            audio: '' // Empty to just enable the buffer
+        });
+        sendDebugMessage(message);
+    };
+
+    const triggerResponse = () => {
+        const message = JSON.stringify({
+            type: 'response.create',
+            response: {
+                modalities: ['audio', 'text']
+            }
+        });
+        sendDebugMessage(message);
+    };
+
+    const commitAudioBuffer = () => {
+        const message = JSON.stringify({
+            type: 'input_audio_buffer.commit'
+        });
+        sendDebugMessage(message);
+    };
 
     const stopAudioCall = async () => {
         console.log('[WEBRTC] Stopping audio call...');
@@ -806,6 +939,48 @@ const FamilyTreeAICall: React.FC<FamilyTreeAICallProps> = ({ onClose, mode }) =>
                                     <div className="w-4 h-4 bg-blue-500 rounded-full animate-pulse"></div>
                                     <span className="font-semibold">Listening for speech...</span>
                                 </div>
+                            </div>
+                        )}
+
+                        {/* Debug Controls */}
+                        {isDebugMode && audioStatus === 'connected' && (
+                            <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                                <h4 className="text-sm font-semibold text-yellow-800 mb-2">🔧 Debug Controls</h4>
+                                <div className="grid grid-cols-2 gap-2 mb-2">
+                                    <button
+                                        onClick={triggerResponse}
+                                        className="text-xs bg-blue-500 text-white px-2 py-1 rounded"
+                                    >
+                                        Trigger AI Response
+                                    </button>
+                                    <button
+                                        onClick={enableInputAudio}
+                                        className="text-xs bg-green-500 text-white px-2 py-1 rounded"
+                                    >
+                                        Enable Input Audio
+                                    </button>
+                                    <button
+                                        onClick={commitAudioBuffer}
+                                        className="text-xs bg-purple-500 text-white px-2 py-1 rounded"
+                                    >
+                                        Commit Audio Buffer
+                                    </button>
+                                    <button
+                                        onClick={() => {
+                                            if (remoteAudioRef.current) {
+                                                remoteAudioRef.current.play().catch(console.error);
+                                            }
+                                        }}
+                                        className="text-xs bg-orange-500 text-white px-2 py-1 rounded"
+                                    >
+                                        Retry Audio Play
+                                    </button>
+                                </div>
+                                {debugInfo && (
+                                    <div className="text-xs text-yellow-700 bg-yellow-100 p-2 rounded mt-2">
+                                        {debugInfo}
+                                    </div>
+                                )}
                             </div>
                         )}
                     </div>
