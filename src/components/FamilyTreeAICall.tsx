@@ -212,13 +212,31 @@ const FamilyTreeAICall: React.FC<FamilyTreeAICallProps> = ({ onClose, mode }) =>
             console.log('[WEBRTC] Added audio track to peer connection');
 
             // Step 5: Create data channel for events
+            console.log('[DEBUG] Creating data channel...');
             const dataChannel = peerConnection.createDataChannel('realtime', {
                 ordered: true
             });
             dataChannelRef.current = dataChannel;
 
+            console.log('[DEBUG] Data channel created:', dataChannel);
+            console.log('[DEBUG] Data channel readyState:', dataChannel.readyState);
+            console.log('[DEBUG] Data channel label:', dataChannel.label);
+
+            // Also try waiting for remote data channel approach
+            let remoteDataChannelReceived = false;
+
+            // Add data channel state monitoring  
+            dataChannel.onclose = () => {
+                console.log('[DEBUG] Data channel closed');
+            };
+
+            dataChannel.onerror = (error) => {
+                console.error('[DEBUG] Data channel error:', error);
+            };
+
             dataChannel.onopen = () => {
-                console.log('[WEBRTC] Data channel opened');
+                console.log('[WEBRTC] Data channel opened!');
+                console.log('[DEBUG] Data channel is now open, readyState:', dataChannel.readyState);
                 setAudioStatus('connected');
                 setIsListening(true);
 
@@ -512,6 +530,37 @@ const FamilyTreeAICall: React.FC<FamilyTreeAICallProps> = ({ onClose, mode }) =>
                 }
             };
 
+            // Handle remote data channels (OpenAI might create these)
+            peerConnection.ondatachannel = (event) => {
+                console.log('[DEBUG] Remote data channel received:', event.channel);
+                const remoteChannel = event.channel;
+                console.log('[DEBUG] Remote channel label:', remoteChannel.label);
+                console.log('[DEBUG] Remote channel readyState:', remoteChannel.readyState);
+
+                // If this is the realtime channel, use it instead
+                if (remoteChannel.label === 'realtime' || remoteChannel.label === 'oai-events') {
+                    console.log('[DEBUG] Using remote data channel instead of local');
+                    remoteDataChannelReceived = true;
+                    dataChannelRef.current = remoteChannel;
+
+                    // Set up the same handlers on the remote channel
+                    remoteChannel.onopen = () => {
+                        console.log('[WEBRTC] Remote data channel opened!');
+                        setAudioStatus('connected');
+                        setIsListening(true);
+                        callStartTimeRef.current = Date.now();
+
+                        // Set up the message handler with all our debug logic
+                        remoteChannel.onmessage = dataChannel.onmessage;
+                    };
+
+                    remoteChannel.onclose = () => console.log('[DEBUG] Remote data channel closed');
+                    remoteChannel.onerror = (error) => console.error('[DEBUG] Remote data channel error:', error);
+                } else {
+                    console.log('[DEBUG] Received unrecognized remote data channel:', remoteChannel.label);
+                }
+            };
+
             // Step 8: Handle connection state changes
             peerConnection.onconnectionstatechange = () => {
                 console.log('[WEBRTC] Connection state:', peerConnection.connectionState);
@@ -571,6 +620,20 @@ const FamilyTreeAICall: React.FC<FamilyTreeAICallProps> = ({ onClose, mode }) =>
             });
 
             console.log('[WEBRTC] WebRTC connection established!');
+
+            // Add timeout to check if data channel never opens
+            setTimeout(() => {
+                if (dataChannelRef.current && dataChannelRef.current.readyState !== 'open') {
+                    console.warn('[DEBUG] Data channel timeout - still not open after 10 seconds');
+                    console.log('[DEBUG] Current data channel state:', dataChannelRef.current.readyState);
+                    console.log('[DEBUG] Remote data channel received:', remoteDataChannelReceived);
+
+                    // Try to force a connection by sending a simple message
+                    if (dataChannelRef.current.readyState === 'connecting') {
+                        console.log('[DEBUG] Data channel still connecting, waiting more...');
+                    }
+                }
+            }, 10000);
 
         } catch (error) {
             console.error('[WEBRTC] Failed to start call:', error);
