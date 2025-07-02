@@ -97,6 +97,10 @@ const FamilyTreeAICall: React.FC<FamilyTreeAICallProps> = ({ onClose, mode }) =>
         if (remoteAudioRef.current) {
             remoteAudioRef.current.pause();
             remoteAudioRef.current.srcObject = null;
+            // Remove from DOM if it was added
+            if (remoteAudioRef.current.parentNode) {
+                remoteAudioRef.current.parentNode.removeChild(remoteAudioRef.current);
+            }
             remoteAudioRef.current = null;
         }
     };
@@ -140,7 +144,14 @@ const FamilyTreeAICall: React.FC<FamilyTreeAICallProps> = ({ onClose, mode }) =>
 
             // Create audio context for mixing local and remote audio
             try {
-                const audioContext = new AudioContext();
+                const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+
+                // Ensure audio context is running
+                if (audioContext.state === 'suspended') {
+                    await audioContext.resume();
+                    console.log('[AUDIO] Audio context resumed');
+                }
+
                 audioContextRef.current = audioContext;
 
                 // Create destination for mixed audio
@@ -152,23 +163,34 @@ const FamilyTreeAICall: React.FC<FamilyTreeAICallProps> = ({ onClose, mode }) =>
                 localSource.connect(mixer);
 
                 // Start recording with just local audio for now (remote will be added when received)
-                const recorder = new MediaRecorder(mixer.stream, {
-                    mimeType: 'audio/webm;codecs=opus'
-                });
+                try {
+                    const recorder = new MediaRecorder(mixer.stream, {
+                        mimeType: MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
+                            ? 'audio/webm;codecs=opus'
+                            : 'audio/webm'
+                    });
 
-                recorder.ondataavailable = (event) => {
-                    if (event.data.size > 0) {
-                        recordedChunksRef.current.push(event.data);
-                    }
-                };
+                    recorder.ondataavailable = (event) => {
+                        if (event.data.size > 0) {
+                            recordedChunksRef.current.push(event.data);
+                            console.log('[RECORDING] Audio chunk collected:', event.data.size, 'bytes');
+                        }
+                    };
 
-                recorder.onstop = () => {
-                    console.log('[RECORDING] Audio recording stopped');
-                };
+                    recorder.onstop = () => {
+                        console.log('[RECORDING] Audio recording stopped');
+                    };
 
-                recorder.start(1000); // Collect data every 1 second
-                audioRecorderRef.current = recorder;
-                console.log('[RECORDING] Started mixed audio recording for S3 storage');
+                    recorder.onerror = (event) => {
+                        console.error('[RECORDING] Recording error:', event);
+                    };
+
+                    recorder.start(1000); // Collect data every 1 second
+                    audioRecorderRef.current = recorder;
+                    console.log('[RECORDING] Started mixed audio recording for S3 storage');
+                } catch (recorderError) {
+                    console.warn('[RECORDING] MediaRecorder failed, audio will not be saved:', recorderError);
+                }
             } catch (recordingError) {
                 console.warn('[RECORDING] Failed to start audio recording:', recordingError);
             }
@@ -344,12 +366,40 @@ const FamilyTreeAICall: React.FC<FamilyTreeAICallProps> = ({ onClose, mode }) =>
                 const audio = new Audio();
                 audio.srcObject = remoteStream;
                 audio.autoplay = true;
+                audio.volume = 1.0; // Ensure full volume
+                audio.controls = false; // Hide controls
+                audio.muted = false; // Ensure not muted
                 remoteAudioRef.current = audio;
 
-                // Handle audio playback on mobile Safari
-                audio.play().catch(error => {
-                    console.warn('[WEBRTC] Audio autoplay failed, user interaction required:', error);
-                });
+                // Add to DOM to ensure playback works (hidden)
+                audio.style.display = 'none';
+                document.body.appendChild(audio);
+
+                // Handle audio playback with user interaction if needed
+                const playAudio = async () => {
+                    try {
+                        await audio.play();
+                        console.log('[AUDIO] Remote audio playing successfully');
+                    } catch (error) {
+                        console.warn('[AUDIO] Audio autoplay failed, trying with user interaction:', error);
+
+                        // Create a one-time click handler to start audio
+                        const clickHandler = async () => {
+                            try {
+                                await audio.play();
+                                console.log('[AUDIO] Audio started after user interaction');
+                                document.removeEventListener('click', clickHandler);
+                            } catch (playError) {
+                                console.error('[AUDIO] Failed to play audio even with user interaction:', playError);
+                            }
+                        };
+
+                        document.addEventListener('click', clickHandler, { once: true });
+                        console.log('[AUDIO] Click anywhere to enable audio playback');
+                    }
+                };
+
+                playAudio();
 
                 // Add remote audio to our recording mixer
                 try {
@@ -661,9 +711,14 @@ const FamilyTreeAICall: React.FC<FamilyTreeAICallProps> = ({ onClose, mode }) =>
                                     <span className="text-yellow-600">Connecting to AI...</span>
                                 </div>
                             ) : audioStatus === 'connected' ? (
-                                <div className="flex items-center justify-center gap-2">
-                                    <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
-                                    <span className="text-green-600">Connected - Speak freely!</span>
+                                <div className="text-center">
+                                    <div className="flex items-center justify-center gap-2 mb-1">
+                                        <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
+                                        <span className="text-green-600">Connected - Speak freely!</span>
+                                    </div>
+                                    <div className="text-xs text-blue-600">
+                                        💡 Can't hear the AI? Click anywhere on the page to enable audio playback
+                                    </div>
                                 </div>
                             ) : audioStatus === 'disconnecting' ? (
                                 <div className="flex items-center justify-center gap-2">
