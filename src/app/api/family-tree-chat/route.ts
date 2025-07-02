@@ -18,11 +18,13 @@ CONVERSATION FLOW & SPECIFIC QUESTIONS:
 - Most users will start by stating their name (e.g., "Hi, my name is Sarah Johnson")
 - When they give you their name, DO NOT create a diagram yet, just ask: "Great to meet you [Name]! What are your parents' full names?"
 - After they give parents, NOW create the first diagram showing: Parents at top → User below them, then ask: "Thanks! Do you have any siblings? If so, what are their names?"
+- **CRITICAL: After the initial parental diagram, EVERY subsequent response must create an updated family tree diagram AND ask a follow-up question**
 - After siblings, create updated diagram adding siblings at the same level as the user, then ask: "What are your grandparents' names? Let's start with your father's parents."
 - After paternal grandparents, create updated diagram, then ask: "And what about your mother's parents?"
 - Continue with specific targeted questions like: "Do you have any aunts or uncles?", "Any cousins you'd like to include?", "What about great-grandparents?"
 
-AFTER EACH DIAGRAM CREATION:
+AFTER EACH DIAGRAM CREATION (POST-PARENTAL INFO):
+- **MANDATORY: Create an updated family tree diagram with ALL previously mentioned family members PLUS the new information**
 - ALWAYS ask a specific, targeted question about the next type of family member
 - NEVER say generic things like "tell me more family details" or "continue sharing"
 - Follow the systematic progression: name → parents → siblings → grandparents → aunts/uncles → cousins
@@ -31,21 +33,26 @@ AFTER EACH DIAGRAM CREATION:
 DIAGRAM CREATION RULES:
 - DO NOT create a diagram when user only gives their name
 - Create the FIRST diagram only after getting parental information
+- **MANDATORY: Create a NEW diagram for EVERY response after the parental information is given**
 - Always show correct family hierarchy: older generations above, younger below
 - For parent-child relationships: Parent nodes at top, children below with arrows Parent --> Child
 - Siblings should be at the same level, both connected to same parents
 - Always include previously mentioned family members in updated diagrams
+- Each new diagram should be a complete family tree with all known information, not just the new additions
 
 RESPONSE PATTERN:
 - After user gives name: Just greet and ask for parents (NO diagram)
 - After user gives parents: Create first diagram with Parents --> User, then ask about siblings
-- After siblings: Update diagram with siblings at same level as user
-- Continue pattern for other relatives
+- **After siblings: MUST create updated diagram with parents + user + siblings, then ask about grandparents**
+- **After grandparents: MUST create updated diagram with all known family, then ask about aunts/uncles**
+- **After aunts/uncles: MUST create updated diagram with all known family, then ask about cousins**
+- **Continue pattern: EVERY response after parental info = NEW complete diagram + follow-up question**
 
 EXAMPLE RESPONSES:
 - After user gives name: "Great to meet you [Name]! What are your parents' full names?" (NO DIAGRAM)
-- After user gives parents: "I've created your family tree with you and your parents! Do you have any siblings? If so, what are their names?"
-- After user gives siblings: "I've added your siblings to the family tree! What are your grandparents' names? Let's start with your father's parents."
+- After user gives parents: "I've created your family tree with you and your parents! Do you have any siblings? If so, what are their names?" (CREATE FIRST DIAGRAM)
+- After user gives siblings: "I've updated your family tree to include your siblings! What are your grandparents' names? Let's start with your father's parents." (CREATE UPDATED DIAGRAM)
+- After user gives grandparents: "I've added your grandparents to the family tree! Do you have any aunts or uncles on either side?" (CREATE UPDATED DIAGRAM)
 
 CORRECT FAMILY TREE STRUCTURE:
 - Grandparents at top level
@@ -73,13 +80,13 @@ const tools = [
         type: "function" as const,
         function: {
             name: "create_mermaid_diagram",
-            description: "Create or update a Mermaid diagram showing family relationships. DO NOT call when user only gives their name. Call FIRST TIME only after getting parental information. Show correct hierarchy: parents above children. Use Parent --> Child arrows.",
+            description: "Create or update a Mermaid diagram showing family relationships. DO NOT call when user only gives their name. Call FIRST TIME after getting parental information, then call EVERY TIME after that when user provides new family information. Always show complete family tree with all known information. Show correct hierarchy: parents above children. Use Parent --> Child arrows.",
             parameters: {
                 type: "object",
                 properties: {
                     mermaid_code: {
                         type: "string",
-                        description: "The Mermaid diagram code using proper syntax. Use 'graph TD' for direction, clear node names in quotes, and '-->' for relationships."
+                        description: "The complete Mermaid diagram code using proper syntax. Must include ALL family members mentioned in the conversation so far. Use 'graph TD' for direction, clear node names in quotes, and '-->' for parent-child relationships."
                     },
                     description: {
                         type: "string",

@@ -292,8 +292,14 @@ const FamilyTreeAICall: React.FC<FamilyTreeAICallProps> = ({ onClose, mode }) =>
 
             dataChannel.onmessage = (event) => {
                 try {
+                    console.log('[WEBRTC] Raw data channel message:', event.data);
                     const data = JSON.parse(event.data);
                     console.log('[WEBRTC] Data channel message:', data.type, data);
+
+                    // Log audio-related events specifically
+                    if (data.type.includes('audio') || data.type.includes('response')) {
+                        console.log('[AUDIO-EVENT]', data.type, data);
+                    }
 
                     switch (data.type) {
                         case 'session.created':
@@ -311,9 +317,58 @@ const FamilyTreeAICall: React.FC<FamilyTreeAICallProps> = ({ onClose, mode }) =>
                             } else if (data.item.type === 'function_call') {
                                 // Handle function calls from the AI
                                 console.log('[WEBRTC] Function call received:', data.item);
+                                console.log('[WEBRTC] Function name:', data.item.name);
+                                console.log('[WEBRTC] Function call ID:', data.item.call_id);
+                                console.log('[WEBRTC] Function arguments type:', typeof data.item.arguments);
+                                console.log('[WEBRTC] Function arguments raw:', data.item.arguments);
+
                                 if (data.item.name === 'create_mermaid_diagram') {
+                                    // Check if arguments exist and are not empty
+                                    if (!data.item.arguments) {
+                                        console.log('[WEBRTC] Function call received but arguments are missing or null - waiting for complete arguments event');
+                                        // Don't throw error, just skip incomplete function calls
+                                        // The complete arguments will come via response.function_call_arguments.done
+                                        return;
+                                    }
+
                                     try {
-                                        const args = JSON.parse(data.item.arguments);
+                                        let args;
+
+                                        // Handle both string and object arguments
+                                        if (typeof data.item.arguments === 'string') {
+                                            console.log('[WEBRTC] Parsing string arguments, length:', data.item.arguments.length);
+
+                                            // Check for empty or whitespace-only strings
+                                            if (!data.item.arguments.trim()) {
+                                                throw new Error('Function arguments string is empty');
+                                            }
+
+                                            // Check for incomplete JSON (common cause of "Unexpected end of JSON input")
+                                            const argsString = data.item.arguments.trim();
+                                            if (!argsString.startsWith('{') || !argsString.endsWith('}')) {
+                                                console.warn('[WEBRTC] Arguments string appears incomplete:', argsString);
+                                                throw new Error('Function arguments JSON appears incomplete');
+                                            }
+
+                                            args = JSON.parse(data.item.arguments);
+                                        } else if (typeof data.item.arguments === 'object') {
+                                            console.log('[WEBRTC] Using object arguments directly');
+                                            args = data.item.arguments;
+                                        } else {
+                                            throw new Error(`Invalid arguments type: ${typeof data.item.arguments}`);
+                                        }
+
+                                        console.log('[WEBRTC] Parsed function arguments:', args);
+
+                                        // Validate required fields
+                                        if (!args || typeof args !== 'object') {
+                                            throw new Error('Parsed arguments is not a valid object');
+                                        }
+
+                                        if (!args.mermaid_code || !args.description) {
+                                            throw new Error(`Missing required fields: mermaid_code=${!!args.mermaid_code}, description=${!!args.description}`);
+                                        }
+
                                         const mermaidMessage: Message = {
                                             sender: 'ai',
                                             text: `I've created a family tree diagram! ${args.description}`,
@@ -322,6 +377,7 @@ const FamilyTreeAICall: React.FC<FamilyTreeAICallProps> = ({ onClose, mode }) =>
                                                 description: args.description
                                             }
                                         };
+                                        console.log('[WEBRTC] Created mermaid message:', mermaidMessage);
                                         setMessages(prev => [...prev, mermaidMessage]);
 
                                         // Send function output back to the conversation
@@ -339,6 +395,17 @@ const FamilyTreeAICall: React.FC<FamilyTreeAICallProps> = ({ onClose, mode }) =>
                                         dataChannel.send(JSON.stringify(functionOutput));
                                     } catch (parseError) {
                                         console.error('[WEBRTC] Error parsing function arguments:', parseError);
+                                        console.error('[WEBRTC] Original arguments:', data.item.arguments);
+
+                                        const errorMessage = parseError instanceof Error ? parseError.message : 'Unknown error';
+
+                                        // Add a fallback message to the chat when function call fails
+                                        const fallbackMessage: Message = {
+                                            sender: 'ai',
+                                            text: `I'm having trouble creating the family tree diagram right now, but I'm still gathering your family information. Please continue sharing details about your family members.`
+                                        };
+                                        setMessages(prev => [...prev, fallbackMessage]);
+
                                         // Send error back to the conversation
                                         const functionOutput = {
                                             type: 'conversation.item.create',
@@ -347,7 +414,8 @@ const FamilyTreeAICall: React.FC<FamilyTreeAICallProps> = ({ onClose, mode }) =>
                                                 call_id: data.item.call_id,
                                                 output: JSON.stringify({
                                                     success: false,
-                                                    error: 'Failed to parse diagram parameters'
+                                                    error: `Failed to parse diagram parameters: ${errorMessage}`,
+                                                    user_message: 'Please continue sharing family information'
                                                 })
                                             }
                                         };
@@ -390,6 +458,7 @@ const FamilyTreeAICall: React.FC<FamilyTreeAICallProps> = ({ onClose, mode }) =>
                             }
                             break;
                         case 'response.audio_transcript.done':
+                            console.log('[AUDIO-TRANSCRIPT] Audio transcript done:', data);
                             if (data.transcript) {
                                 setMessages(prev => [...prev, {
                                     sender: 'ai',
@@ -402,6 +471,107 @@ const FamilyTreeAICall: React.FC<FamilyTreeAICallProps> = ({ onClose, mode }) =>
                                     text: currentTranscript
                                 }]);
                                 setCurrentTranscript('');
+                            }
+                            break;
+                        case 'response.audio.delta':
+                            console.log('[AUDIO-DELTA] Received audio data chunk');
+                            break;
+                        case 'response.audio.done':
+                            console.log('[AUDIO-DONE] Audio response completed');
+                            break;
+                        case 'response.function_call_arguments.done':
+                            // This is the proper way to receive complete function call arguments in Realtime API
+                            console.log('[WEBRTC] Function call arguments completed:', data);
+                            if (data.name === 'create_mermaid_diagram') {
+                                try {
+                                    let args;
+
+                                    // Parse the complete arguments
+                                    if (typeof data.arguments === 'string') {
+                                        console.log('[WEBRTC] Parsing complete function arguments');
+                                        args = JSON.parse(data.arguments);
+                                    } else if (typeof data.arguments === 'object') {
+                                        args = data.arguments;
+                                    } else {
+                                        throw new Error(`Invalid complete arguments type: ${typeof data.arguments}`);
+                                    }
+
+                                    console.log('[WEBRTC] Complete function arguments:', args);
+
+                                    // Validate required fields
+                                    if (!args || typeof args !== 'object') {
+                                        throw new Error('Complete arguments is not a valid object');
+                                    }
+
+                                    if (!args.mermaid_code || !args.description) {
+                                        throw new Error(`Missing required fields in complete args: mermaid_code=${!!args.mermaid_code}, description=${!!args.description}`);
+                                    }
+
+                                    const mermaidMessage: Message = {
+                                        sender: 'ai',
+                                        text: `I've created a family tree diagram! ${args.description}`,
+                                        mermaidDiagram: {
+                                            code: args.mermaid_code,
+                                            description: args.description
+                                        }
+                                    };
+                                    console.log('[WEBRTC] Created mermaid message from complete args:', mermaidMessage);
+                                    setMessages(prev => [...prev, mermaidMessage]);
+
+                                    // Send function output back to the conversation
+                                    const functionOutput = {
+                                        type: 'conversation.item.create',
+                                        item: {
+                                            type: 'function_call_output',
+                                            call_id: data.call_id,
+                                            output: JSON.stringify({
+                                                success: true,
+                                                message: 'Mermaid diagram created successfully and displayed to user'
+                                            })
+                                        }
+                                    };
+                                    dataChannel.send(JSON.stringify(functionOutput));
+
+                                    // After successful function call, trigger AI to continue with audio response
+                                    setTimeout(() => {
+                                        console.log('[WEBRTC] Requesting audio response after function call');
+                                        const continueResponse = {
+                                            type: 'response.create',
+                                            response: {
+                                                modalities: ['audio', 'text'],
+                                                instructions: 'Continue the conversation with audio. Ask the next question about family members.'
+                                            }
+                                        };
+                                        dataChannel.send(JSON.stringify(continueResponse));
+                                    }, 100);
+                                } catch (parseError) {
+                                    console.error('[WEBRTC] Error parsing complete function arguments:', parseError);
+                                    console.error('[WEBRTC] Complete arguments data:', data.arguments);
+
+                                    const errorMessage = parseError instanceof Error ? parseError.message : 'Unknown error';
+
+                                    // Add a fallback message to the chat when function call fails
+                                    const fallbackMessage: Message = {
+                                        sender: 'ai',
+                                        text: `I'm having trouble creating the family tree diagram right now, but I'm still gathering your family information. Please continue sharing details about your family members.`
+                                    };
+                                    setMessages(prev => [...prev, fallbackMessage]);
+
+                                    // Send error back to the conversation
+                                    const functionOutput = {
+                                        type: 'conversation.item.create',
+                                        item: {
+                                            type: 'function_call_output',
+                                            call_id: data.call_id,
+                                            output: JSON.stringify({
+                                                success: false,
+                                                error: `Failed to parse complete diagram parameters: ${errorMessage}`,
+                                                user_message: 'Please continue sharing family information'
+                                            })
+                                        }
+                                    };
+                                    dataChannel.send(JSON.stringify(functionOutput));
+                                }
                             }
                             break;
                         case 'error':
@@ -420,16 +590,41 @@ const FamilyTreeAICall: React.FC<FamilyTreeAICallProps> = ({ onClose, mode }) =>
             // Step 6: Handle remote audio stream
             peerConnection.ontrack = (event) => {
                 console.log('[WEBRTC] Received remote audio track');
+                console.log('[WEBRTC] Track details:', {
+                    kind: event.track.kind,
+                    readyState: event.track.readyState,
+                    enabled: event.track.enabled,
+                    streamCount: event.streams.length
+                });
+
                 const [remoteStream] = event.streams;
+                console.log('[WEBRTC] Remote stream details:', {
+                    id: remoteStream.id,
+                    active: remoteStream.active,
+                    audioTracks: remoteStream.getAudioTracks().length,
+                    videoTracks: remoteStream.getVideoTracks().length
+                });
 
                 // Create audio element and play remote stream
                 const audio = new Audio();
                 audio.srcObject = remoteStream;
                 audio.autoplay = true;
+                audio.volume = 1.0; // Ensure volume is at max
                 remoteAudioRef.current = audio;
 
+                // Add event listeners for audio debugging
+                audio.addEventListener('loadstart', () => console.log('[AUDIO] Load started'));
+                audio.addEventListener('loadeddata', () => console.log('[AUDIO] Data loaded'));
+                audio.addEventListener('canplay', () => console.log('[AUDIO] Can play'));
+                audio.addEventListener('play', () => console.log('[AUDIO] Started playing'));
+                audio.addEventListener('pause', () => console.log('[AUDIO] Paused'));
+                audio.addEventListener('ended', () => console.log('[AUDIO] Ended'));
+                audio.addEventListener('error', (e) => console.error('[AUDIO] Error:', e));
+
                 // Handle audio playback on mobile Safari
-                audio.play().catch(error => {
+                audio.play().then(() => {
+                    console.log('[AUDIO] Successfully started playback');
+                }).catch(error => {
                     console.warn('[WEBRTC] Audio autoplay failed, user interaction required:', error);
                 });
 
@@ -602,28 +797,30 @@ const FamilyTreeAICall: React.FC<FamilyTreeAICallProps> = ({ onClose, mode }) =>
         if (!input.trim() || loading) return;
         const userMessage = { sender: 'user' as const, text: input };
         setMessages(prev => [...prev, userMessage]);
-        setInput('');
 
         if (mode === 'text') {
             setLoading(true);
             try {
-                // Prepare messages for API (role-based)
+                // Prepare messages for API (role-based) - use userMessage.text instead of input
                 const apiMessages = [
                     ...messages.map(m => ({ role: m.sender === 'ai' ? 'assistant' : 'user', content: m.text })),
-                    { role: 'user', content: input }
+                    { role: 'user', content: userMessage.text }
                 ];
+                setInput(''); // Clear input after preparing API messages
                 const res = await fetch('/api/family-tree-chat', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ messages: apiMessages, sessionId }),
                 });
                 const data = await res.json();
+                console.log('[DEBUG] API Response:', data);
                 if (data.aiMessage) {
                     const newMessage: Message = {
                         sender: 'ai' as const,
                         text: data.aiMessage,
                         ...(data.mermaidDiagram && { mermaidDiagram: data.mermaidDiagram })
                     };
+                    console.log('[DEBUG] New message with diagram:', newMessage);
                     setMessages(prev => [...prev, newMessage]);
                 } else {
                     setMessages(prev => [...prev, { sender: 'ai' as const, text: 'Sorry, there was an error getting a response.' }]);
@@ -662,6 +859,40 @@ const FamilyTreeAICall: React.FC<FamilyTreeAICallProps> = ({ onClose, mode }) =>
                     <p className="text-xs text-gray-500">
                         Your conversation helps the Archikutty committee organize the family tree for the reunion.
                     </p>
+
+                    {/* Disclaimers */}
+                    <div className="mt-3 space-y-3">
+                        {/* Diagram Accuracy Disclaimer */}
+                        <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg text-left">
+                            <div className="flex items-start gap-2">
+                                <div className="text-amber-600 text-sm mt-0.5">⚠️</div>
+                                <div>
+                                    <p className="text-xs text-amber-800 font-medium mb-1">Diagram Accuracy Notice</p>
+                                    <p className="text-xs text-amber-700">
+                                        Family tree diagrams created during conversation may not be perfectly accurate.
+                                        <strong> Don't worry!</strong> We will analyze all conversations to create
+                                        the real, detailed family tree for the reunion.
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Technical Issues Disclaimer */}
+                        <div className="p-3 bg-green-50 border border-green-200 rounded-lg text-left">
+                            <div className="flex items-start gap-2">
+                                <div className="text-green-600 text-sm mt-0.5">🔄</div>
+                                <div>
+                                    <p className="text-xs text-green-800 font-medium mb-1">Network Issues?</p>
+                                    <p className="text-xs text-green-700">
+                                        If your chat gets interrupted or you experience network hiccups,
+                                        <strong> simply close and restart the chat.</strong> Each conversation is saved
+                                        independently.
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
                     {mode === 'audio' && (
                         <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg text-left">
                             <p className="text-xs text-blue-800 font-medium mb-1">💡 Voice Chat Tips:</p>
@@ -711,25 +942,33 @@ const FamilyTreeAICall: React.FC<FamilyTreeAICallProps> = ({ onClose, mode }) =>
                     <div className="flex-1 flex flex-col">
                         <h3 className="text-sm font-semibold text-gray-700 mb-2">🌳 Your Family Tree</h3>
                         <div className="flex-1 overflow-y-auto bg-gray-50 rounded-lg p-4 border border-gray-200">
-                            {messages.filter(msg => msg.mermaidDiagram).length === 0 ? (
-                                <div className="text-center text-gray-500 italic py-8">
-                                    Family tree diagrams will appear here as you share information
-                                </div>
-                            ) : (
-                                <div className="space-y-4">
-                                    {messages
-                                        .filter(msg => msg.mermaidDiagram && msg.mermaidDiagram.code)
-                                        .map((msg, idx) => (
-                                            <ErrorBoundary key={idx}>
-                                                <MermaidDiagram
-                                                    code={msg.mermaidDiagram!.code}
-                                                    description={msg.mermaidDiagram!.description || 'Family tree diagram'}
-                                                />
-                                            </ErrorBoundary>
-                                        ))
-                                    }
-                                </div>
-                            )}
+                            {(() => {
+                                const diagramMessages = messages.filter(msg => msg.mermaidDiagram);
+                                console.log('[DEBUG] Messages with diagrams:', diagramMessages.length);
+                                console.log('[DEBUG] All messages:', messages);
+                                return diagramMessages.length === 0 ? (
+                                    <div className="text-center text-gray-500 italic py-8">
+                                        Family tree diagrams will appear here as you share information
+                                        <div className="text-xs mt-2">
+                                            Debug: {messages.length} total messages, {diagramMessages.length} with diagrams
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <div className="space-y-4">
+                                        {messages
+                                            .filter(msg => msg.mermaidDiagram && msg.mermaidDiagram.code)
+                                            .map((msg, idx) => (
+                                                <ErrorBoundary key={idx}>
+                                                    <MermaidDiagram
+                                                        code={msg.mermaidDiagram!.code}
+                                                        description={msg.mermaidDiagram!.description || 'Family tree diagram'}
+                                                    />
+                                                </ErrorBoundary>
+                                            ))
+                                        }
+                                    </div>
+                                );
+                            })()}
                         </div>
                     </div>
                 </div>
