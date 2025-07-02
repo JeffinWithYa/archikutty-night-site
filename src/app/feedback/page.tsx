@@ -1,7 +1,82 @@
+'use client';
+
+import { useState } from 'react';
+
 export default function FeedbackPage() {
+    const [formData, setFormData] = useState({
+        name: '',
+        email: '',
+        category: '',
+        subject: '',
+        message: '',
+        anonymous: false
+    });
+
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [submitStatus, setSubmitStatus] = useState<'idle' | 'success' | 'error'>('idle');
+    const [errorMessage, setErrorMessage] = useState('');
+
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setIsSubmitting(true);
+        setSubmitStatus('idle');
+        setErrorMessage('');
+
+        try {
+            const response = await fetch('/api/feedback', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(formData),
+            });
+
+            const result = await response.json();
+
+            if (response.ok) {
+                setSubmitStatus('success');
+                // Reset form
+                setFormData({
+                    name: '',
+                    email: '',
+                    category: '',
+                    subject: '',
+                    message: '',
+                    anonymous: false
+                });
+            } else {
+                setSubmitStatus('error');
+                setErrorMessage(result.error || 'Failed to submit feedback. Please try again.');
+            }
+        } catch (error) {
+            setSubmitStatus('error');
+            setErrorMessage('Network error. Please check your connection and try again.');
+            console.error('Feedback submission error:', error);
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+
+    const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+        const { name, value, type } = e.target;
+
+        if (type === 'checkbox') {
+            const { checked } = e.target as HTMLInputElement;
+            setFormData(prev => ({
+                ...prev,
+                [name]: checked
+            }));
+        } else {
+            setFormData(prev => ({
+                ...prev,
+                [name]: value
+            }));
+        }
+    };
+
     return (
         <div className="min-h-screen py-16 px-4 sm:px-6 lg:px-8">
-            <div className="max-w-4xl mx-auto">
+            <div className="max-w-2xl mx-auto">
                 <div className="text-center mb-12">
                     <h1 className="text-4xl md:text-5xl font-bold text-gray-800 mb-4">
                         Feedback & Suggestions
@@ -11,56 +86,187 @@ export default function FeedbackPage() {
                     </p>
                 </div>
 
-                {/* Coming Soon Section */}
-                <div className="text-center bg-white/70 rounded-2xl shadow-xl p-12">
-                    <div className="text-8xl mb-6">💬</div>
-                    <h2 className="text-3xl font-bold text-gray-800 mb-4">Coming Soon!</h2>
-                    <p className="text-lg text-gray-600 mb-8">
-                        We're building a comprehensive feedback system where you can share your ideas,
-                        suggestions, and thoughts about the reunion. Your voice matters to us!
-                    </p>
-
-                    <div className="grid md:grid-cols-1 gap-8 mt-12">
-                        <div className="bg-gradient-to-br from-purple-100 to-pink-100 p-6 rounded-xl">
-                            <div className="text-3xl mb-4">💡</div>
-                            <h3 className="text-xl font-semibold text-gray-800 mb-2">Share Ideas</h3>
-                            <p className="text-gray-600">
-                                Suggest activities, games, or special moments you'd like to see at the reunion
-                            </p>
+                <div className="bg-white/70 rounded-2xl shadow-xl p-8">
+                    <form onSubmit={handleSubmit} className="space-y-6">
+                        {/* Anonymous Option */}
+                        <div className="flex items-center space-x-3 p-4 bg-blue-50 rounded-lg border border-blue-200">
+                            <input
+                                type="checkbox"
+                                id="anonymous"
+                                name="anonymous"
+                                checked={formData.anonymous}
+                                onChange={handleChange}
+                                className="w-5 h-5 text-purple-600 bg-gray-100 border-gray-300 rounded focus:ring-purple-500"
+                            />
+                            <label htmlFor="anonymous" className="text-sm font-medium text-blue-800">
+                                Submit feedback anonymously
+                            </label>
                         </div>
-                    </div>
 
-                    <div className="mt-12 bg-white/50 rounded-xl p-6">
-                        <h3 className="text-xl font-semibold text-gray-800 mb-4">
-                            In the meantime...
-                        </h3>
-                        <p className="text-gray-600 mb-6">
-                            Have feedback or suggestions right now? We'd love to hear from you!
-                        </p>
-                        <div className="inline-block bg-gradient-to-r from-purple-600 to-pink-600 text-white font-semibold py-3 px-6 rounded-lg shadow-lg text-lg">
-                            Contact: info@archikutty.com
+                        {/* Name and Email (hidden if anonymous) */}
+                        {!formData.anonymous && (
+                            <>
+                                <div>
+                                    <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-2">
+                                        Full Name *
+                                    </label>
+                                    <input
+                                        type="text"
+                                        id="name"
+                                        name="name"
+                                        required={!formData.anonymous}
+                                        value={formData.name}
+                                        onChange={handleChange}
+                                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                                        placeholder="Enter your full name"
+                                    />
+                                </div>
+
+                                <div>
+                                    <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
+                                        Email Address *
+                                    </label>
+                                    <input
+                                        type="email"
+                                        id="email"
+                                        name="email"
+                                        required={!formData.anonymous}
+                                        value={formData.email}
+                                        onChange={handleChange}
+                                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                                        placeholder="Enter your email address"
+                                    />
+                                </div>
+                            </>
+                        )}
+
+                        {/* Category */}
+                        <div>
+                            <label htmlFor="category" className="block text-sm font-medium text-gray-700 mb-2">
+                                Feedback Category
+                            </label>
+                            <select
+                                id="category"
+                                name="category"
+                                value={formData.category}
+                                onChange={handleChange}
+                                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                            >
+                                <option value="">Select a category</option>
+                                <option value="event-planning">Event Planning & Activities</option>
+                                <option value="website">Website & Technology</option>
+                                <option value="logistics">Logistics & Venue</option>
+                                <option value="food">Food & Catering</option>
+                                <option value="family-tree">Family Tree & Genealogy</option>
+                                <option value="suggestions">General Suggestions</option>
+                                <option value="complaint">Issue or Complaint</option>
+                                <option value="appreciation">Appreciation & Thanks</option>
+                                <option value="other">Other</option>
+                            </select>
                         </div>
-                    </div>
+
+                        {/* Subject */}
+                        <div>
+                            <label htmlFor="subject" className="block text-sm font-medium text-gray-700 mb-2">
+                                Subject <span className="text-gray-500">(optional)</span>
+                            </label>
+                            <input
+                                type="text"
+                                id="subject"
+                                name="subject"
+                                value={formData.subject}
+                                onChange={handleChange}
+                                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                                placeholder="Brief subject line"
+                            />
+                        </div>
+
+                        {/* Message */}
+                        <div>
+                            <label htmlFor="message" className="block text-sm font-medium text-gray-700 mb-2">
+                                Your Feedback or Suggestion *
+                            </label>
+                            <textarea
+                                id="message"
+                                name="message"
+                                rows={6}
+                                required
+                                value={formData.message}
+                                onChange={handleChange}
+                                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                                placeholder="Share your thoughts, ideas, suggestions, or feedback about the reunion..."
+                            />
+                        </div>
+
+                        {/* Status Messages */}
+                        {submitStatus === 'success' && (
+                            <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-4">
+                                <div className="flex items-center">
+                                    <div className="text-green-600 text-2xl mr-3">✅</div>
+                                    <div>
+                                        <h4 className="text-green-800 font-semibold">Feedback Submitted Successfully!</h4>
+                                        <p className="text-green-700 text-sm">
+                                            Thank you for your input! Your feedback has been saved and will be reviewed by the committee.
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {submitStatus === 'error' && (
+                            <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
+                                <div className="flex items-center">
+                                    <div className="text-red-600 text-2xl mr-3">❌</div>
+                                    <div>
+                                        <h4 className="text-red-800 font-semibold">Submission Failed</h4>
+                                        <p className="text-red-700 text-sm">{errorMessage}</p>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        <button
+                            type="submit"
+                            disabled={isSubmitting}
+                            className={`w-full font-semibold py-4 px-8 rounded-lg shadow-lg transition-all duration-200 ${isSubmitting
+                                ? 'bg-gray-400 cursor-not-allowed'
+                                : 'bg-gradient-to-r from-purple-600 to-pink-600 text-white hover:shadow-xl transform hover:scale-105'
+                                }`}
+                        >
+                            {isSubmitting ? (
+                                <div className="flex items-center justify-center">
+                                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
+                                    Submitting Feedback...
+                                </div>
+                            ) : (
+                                'Submit Feedback'
+                            )}
+                        </button>
+                    </form>
                 </div>
 
-                {/* Feature Preview */}
+                {/* Info Section */}
                 <div className="mt-12 grid md:grid-cols-3 gap-6">
                     <div className="text-center p-6 bg-white/50 rounded-xl">
                         <div className="text-2xl mb-3">📝</div>
-                        <h4 className="font-semibold text-gray-800 mb-2">Suggestion Box</h4>
-                        <p className="text-sm text-gray-600">Anonymous suggestions welcome</p>
+                        <h4 className="font-semibold text-gray-800 mb-2">Anonymous Option</h4>
+                        <p className="text-sm text-gray-600">Feel free to share honest feedback anonymously</p>
                     </div>
 
                     <div className="text-center p-6 bg-white/50 rounded-xl">
                         <div className="text-2xl mb-3">🎯</div>
-                        <h4 className="font-semibold text-gray-800 mb-2">Event Planning</h4>
-                        <p className="text-sm text-gray-600">Help shape future reunions</p>
+                        <h4 className="font-semibold text-gray-800 mb-2">All Categories</h4>
+                        <p className="text-sm text-gray-600">Website, events, food, logistics - everything is welcome</p>
                     </div>
 
                     <div className="text-center p-6 bg-white/50 rounded-xl">
-                        <div className="text-2xl mb-3">📊</div>
-                        <h4 className="font-semibold text-gray-800 mb-2">Polls & Surveys</h4>
-                        <p className="text-sm text-gray-600">Vote on activities and preferences</p>
+                        <div className="text-2xl mb-3">💬</div>
+                        <h4 className="font-semibold text-gray-800 mb-2">Direct Contact</h4>
+                        <p className="text-sm text-gray-600">
+                            <a href="mailto:info@archikutty.com" className="text-purple-600 hover:text-purple-800">
+                                info@archikutty.com
+                            </a>
+                        </p>
                     </div>
                 </div>
             </div>
