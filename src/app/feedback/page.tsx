@@ -1,3 +1,5 @@
+import FeedbackForm from '../../components/FeedbackForm';
+
 export default function FeedbackPage() {
     return (
         <div className="min-h-screen py-16 px-4 sm:px-6 lg:px-8">
@@ -11,36 +13,14 @@ export default function FeedbackPage() {
                     </p>
                 </div>
 
-                {/* Coming Soon Section */}
+                {/* Anonymous Feedback Form */}
                 <div className="text-center bg-white/70 rounded-2xl shadow-xl p-12">
                     <div className="text-8xl mb-6">💬</div>
-                    <h2 className="text-3xl font-bold text-gray-800 mb-4">Coming Soon!</h2>
+                    <h2 className="text-3xl font-bold text-gray-800 mb-4">Anonymous Feedback</h2>
                     <p className="text-lg text-gray-600 mb-8">
-                        We're building a comprehensive feedback system where you can share your ideas,
-                        suggestions, and thoughts about the reunion. Your voice matters to us!
+                        Your feedback is <span className="font-bold text-purple-700">completely anonymous</span>. We do not collect your name or email. Please share your thoughts, suggestions, or concerns below!
                     </p>
-
-                    <div className="grid md:grid-cols-1 gap-8 mt-12">
-                        <div className="bg-gradient-to-br from-purple-100 to-pink-100 p-6 rounded-xl">
-                            <div className="text-3xl mb-4">💡</div>
-                            <h3 className="text-xl font-semibold text-gray-800 mb-2">Share Ideas</h3>
-                            <p className="text-gray-600">
-                                Suggest activities, games, or special moments you'd like to see at the reunion
-                            </p>
-                        </div>
-                    </div>
-
-                    <div className="mt-12 bg-white/50 rounded-xl p-6">
-                        <h3 className="text-xl font-semibold text-gray-800 mb-4">
-                            In the meantime...
-                        </h3>
-                        <p className="text-gray-600 mb-6">
-                            Have feedback or suggestions right now? We'd love to hear from you!
-                        </p>
-                        <div className="inline-block bg-gradient-to-r from-purple-600 to-pink-600 text-white font-semibold py-3 px-6 rounded-lg shadow-lg text-lg">
-                            Contact: info@archikutty.com
-                        </div>
-                    </div>
+                    <FeedbackForm />
                 </div>
 
                 {/* Feature Preview */}
