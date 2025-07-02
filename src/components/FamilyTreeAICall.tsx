@@ -40,12 +40,22 @@ const FamilyTreeAICall: React.FC<FamilyTreeAICallProps> = ({ onClose, mode }) =>
         chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, [messages]);
 
+    // Save data on component unmount ref
+    const saveOnUnmountRef = useRef<(() => Promise<void>) | null>(null);
+
     // Cleanup effect for WebRTC resources
     useEffect(() => {
         return () => {
+            // Save voice data if there's an active call before cleanup
+            if (audioStatus === 'connected' && messages.length > 0 && saveOnUnmountRef.current) {
+                console.log('[CLEANUP] Component unmounting with active call - saving data');
+                saveOnUnmountRef.current().catch(error => {
+                    console.error('[CLEANUP] Failed to save data on unmount:', error);
+                });
+            }
             cleanup();
         };
-    }, []);
+    }, [audioStatus, messages]);
 
     const cleanup = () => {
         if (callTimeoutRef.current) {
@@ -482,6 +492,9 @@ const FamilyTreeAICall: React.FC<FamilyTreeAICallProps> = ({ onClose, mode }) =>
         }
     };
 
+    // Assign save function to ref for cleanup
+    saveOnUnmountRef.current = saveVoiceChatData;
+
     const stopAudioCall = async () => {
         console.log('[WEBRTC] Stopping audio call...');
 
@@ -569,6 +582,7 @@ const FamilyTreeAICall: React.FC<FamilyTreeAICallProps> = ({ onClose, mode }) =>
                                 <li>• <strong>If you interrupt the AI:</strong> Just ask "please continue" or say your full name if it's the start</li>
                                 <li>• <strong>If the call drops:</strong> Simply click "Start Voice Call" again</li>
                                 <li>• <strong>Best results:</strong> Wait for the AI to finish speaking before responding</li>
+                                <li>• <strong>⚠️ Important:</strong> Always click "End Call" to save your conversation - closing this window may not save it reliably!</li>
                             </ul>
                         </div>
                     )}
@@ -706,8 +720,11 @@ const FamilyTreeAICall: React.FC<FamilyTreeAICallProps> = ({ onClose, mode }) =>
                                 <div className="text-sm text-gray-600 mb-1">
                                     Time remaining: {Math.floor(timeRemaining / 60)}:{(timeRemaining % 60).toString().padStart(2, '0')}
                                 </div>
-                                <div className="text-xs text-gray-500">
+                                <div className="text-xs text-gray-500 mb-2">
                                     💡 If conversation gets stuck, say "please continue" or your name
+                                </div>
+                                <div className="text-xs text-orange-600 bg-orange-50 px-2 py-1 rounded border border-orange-200">
+                                    ⚠️ Remember to click "End Call" when finished to save your conversation reliably!
                                 </div>
                             </div>
                         )}
