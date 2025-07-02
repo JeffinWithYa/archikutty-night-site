@@ -310,12 +310,24 @@ const FamilyTreeAICall: React.FC<FamilyTreeAICallProps> = ({ onClose, mode }) =>
                                 setCurrentTranscript('');
                             }
                             break;
+                        case 'response.function_call_arguments.delta':
+                            // Handle function call arguments (not used in current implementation)
+                            console.log('[WEBRTC] Function call arguments delta (ignored):', data);
+                            break;
+                        case 'response.function_call_arguments.done':
+                            // Handle function call arguments completion (not used in current implementation)
+                            console.log('[WEBRTC] Function call arguments done (ignored):', data);
+                            break;
                         case 'error':
                             console.error('[WEBRTC] OpenAI error:', data.error);
                             setAudioStatus('error');
                             setTimeout(() => {
                                 stopAudioCall(); // Remove await for faster disconnect
                             }, 2000); // Auto-disconnect on error after 2 seconds
+                            break;
+                        default:
+                            // Handle any unrecognized message types
+                            console.log('[WEBRTC] Unhandled message type:', data.type, data);
                             break;
                     }
                 } catch (err) {
