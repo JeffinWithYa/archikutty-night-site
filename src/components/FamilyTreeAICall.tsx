@@ -19,7 +19,7 @@ const FamilyTreeAICall: React.FC<FamilyTreeAICallProps> = ({ onClose, mode }) =>
     const chatEndRef = useRef<HTMLDivElement>(null);
 
     // WebRTC Audio call state
-    const [audioStatus, setAudioStatus] = useState<'idle' | 'connecting' | 'connected' | 'error'>('idle');
+    const [audioStatus, setAudioStatus] = useState<'idle' | 'connecting' | 'connected' | 'disconnecting' | 'error'>('idle');
     const [isListening, setIsListening] = useState(false);
     const [currentTranscript, setCurrentTranscript] = useState('');
     const [timeRemaining, setTimeRemaining] = useState(0);
@@ -212,13 +212,13 @@ const FamilyTreeAICall: React.FC<FamilyTreeAICallProps> = ({ onClose, mode }) =>
                 const callDuration = 5 * 60 * 1000; // 5 minutes
                 setTimeRemaining(300); // 5 minutes in seconds
 
-                callTimeoutRef.current = setTimeout(async () => {
+                callTimeoutRef.current = setTimeout(() => {
                     console.log('[WEBRTC] Auto-disconnecting after 5 minutes');
                     setMessages(prev => [...prev, {
                         sender: 'ai',
                         text: 'Our family tree session has ended. Thank you for sharing your information!'
                     }]);
-                    await stopAudioCall();
+                    stopAudioCall(); // Remove await for faster disconnect
                 }, callDuration);
 
                 // Start countdown timer
@@ -303,8 +303,8 @@ const FamilyTreeAICall: React.FC<FamilyTreeAICallProps> = ({ onClose, mode }) =>
                         case 'error':
                             console.error('[WEBRTC] OpenAI error:', data.error);
                             setAudioStatus('error');
-                            setTimeout(async () => {
-                                await stopAudioCall();
+                            setTimeout(() => {
+                                stopAudioCall(); // Remove await for faster disconnect
                             }, 2000); // Auto-disconnect on error after 2 seconds
                             break;
                     }
@@ -485,13 +485,25 @@ const FamilyTreeAICall: React.FC<FamilyTreeAICallProps> = ({ onClose, mode }) =>
     const stopAudioCall = async () => {
         console.log('[WEBRTC] Stopping audio call...');
 
-        // Save voice chat data before cleanup
-        await saveVoiceChatData();
-
-        cleanup();
-        setAudioStatus('idle');
+        // Immediately show disconnecting state to user
+        setAudioStatus('disconnecting');
         setIsListening(false);
         setCurrentTranscript('');
+
+        // Immediately cleanup connections (this is fast)
+        cleanup();
+
+        // Brief delay to show disconnecting state, then set to idle
+        setTimeout(() => {
+            setAudioStatus('idle');
+        }, 300); // Small delay so user sees the "Disconnecting..." feedback
+
+        // Save voice chat data in background (don't block UI)
+        saveVoiceChatData().then(() => {
+            console.log('[WEBRTC] Voice data saved successfully in background');
+        }).catch((error) => {
+            console.error('[WEBRTC] Background save failed:', error);
+        });
     };
 
     const handleSend = async () => {
@@ -624,6 +636,11 @@ const FamilyTreeAICall: React.FC<FamilyTreeAICallProps> = ({ onClose, mode }) =>
                                     <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
                                     <span className="text-green-600">Connected - Speak freely!</span>
                                 </div>
+                            ) : audioStatus === 'disconnecting' ? (
+                                <div className="flex items-center justify-center gap-2">
+                                    <div className="w-3 h-3 bg-orange-500 rounded-full animate-pulse"></div>
+                                    <span className="text-orange-600">Disconnecting...</span>
+                                </div>
                             ) : audioStatus === 'error' ? (
                                 <div className="text-center">
                                     <span className="text-red-600 block">Connection error occurred</span>
@@ -655,6 +672,18 @@ const FamilyTreeAICall: React.FC<FamilyTreeAICallProps> = ({ onClose, mode }) =>
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                                     </svg>
                                     {audioStatus === 'connecting' ? 'Cancel' : 'End Call'}
+                                </button>
+                            )}
+
+                            {audioStatus === 'disconnecting' && (
+                                <button
+                                    disabled
+                                    className="bg-gray-400 text-white font-semibold py-2 px-6 rounded-lg cursor-not-allowed flex items-center gap-2"
+                                >
+                                    <svg className="w-5 h-5 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                                    </svg>
+                                    Disconnecting...
                                 </button>
                             )}
 
