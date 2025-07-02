@@ -211,10 +211,12 @@ const FamilyTreeAICall: React.FC<FamilyTreeAICallProps> = ({ onClose, mode }) =>
             });
             console.log('[WEBRTC] Added audio track to peer connection');
 
-            // Step 5: Create data channel for events
+            // Step 5: Create data channel for events  
             console.log('[DEBUG] Creating data channel...');
-            const dataChannel = peerConnection.createDataChannel('realtime', {
-                ordered: true
+            const dataChannel = peerConnection.createDataChannel('oai-events', {
+                ordered: true,
+                maxRetransmits: undefined,
+                maxPacketLifeTime: undefined
             });
             dataChannelRef.current = dataChannel;
 
@@ -624,16 +626,32 @@ const FamilyTreeAICall: React.FC<FamilyTreeAICallProps> = ({ onClose, mode }) =>
             // Add timeout to check if data channel never opens
             setTimeout(() => {
                 if (dataChannelRef.current && dataChannelRef.current.readyState !== 'open') {
-                    console.warn('[DEBUG] Data channel timeout - still not open after 10 seconds');
+                    console.warn('[DEBUG] Data channel timeout - still not open after 5 seconds');
                     console.log('[DEBUG] Current data channel state:', dataChannelRef.current.readyState);
                     console.log('[DEBUG] Remote data channel received:', remoteDataChannelReceived);
 
-                    // Try to force a connection by sending a simple message
-                    if (dataChannelRef.current.readyState === 'connecting') {
-                        console.log('[DEBUG] Data channel still connecting, waiting more...');
+                    // Try creating a new data channel with different settings
+                    console.log('[DEBUG] Attempting to create backup data channel...');
+                    try {
+                        const backupChannel = peerConnection.createDataChannel('backup-realtime', {
+                            ordered: false  // Try unordered
+                        });
+
+                        backupChannel.onopen = () => {
+                            console.log('[DEBUG] Backup data channel opened!');
+                            dataChannelRef.current = backupChannel;
+                            setAudioStatus('connected');
+                            setIsListening(true);
+                            callStartTimeRef.current = Date.now();
+                        };
+
+                        backupChannel.onmessage = dataChannelRef.current?.onmessage || (() => { });
+
+                    } catch (backupError) {
+                        console.error('[DEBUG] Failed to create backup channel:', backupError);
                     }
                 }
-            }, 10000);
+            }, 5000);
 
         } catch (error) {
             console.error('[WEBRTC] Failed to start call:', error);
