@@ -23,8 +23,6 @@ const FamilyTreeAICall: React.FC<FamilyTreeAICallProps> = ({ onClose, mode }) =>
     const [isListening, setIsListening] = useState(false);
     const [currentTranscript, setCurrentTranscript] = useState('');
     const [timeRemaining, setTimeRemaining] = useState(0);
-    const [debugInfo, setDebugInfo] = useState('');
-    const [isDebugMode] = useState(true); // Enable debug mode
     const peerConnectionRef = useRef<RTCPeerConnection | null>(null);
     const dataChannelRef = useRef<RTCDataChannel | null>(null);
     const mediaStreamRef = useRef<MediaStream | null>(null);
@@ -211,43 +209,19 @@ const FamilyTreeAICall: React.FC<FamilyTreeAICallProps> = ({ onClose, mode }) =>
             });
             console.log('[WEBRTC] Added audio track to peer connection');
 
-            // Step 5: Create data channel for events  
-            console.log('[DEBUG] Creating data channel...');
-            const dataChannel = peerConnection.createDataChannel('oai-events', {
-                ordered: true,
-                maxRetransmits: undefined,
-                maxPacketLifeTime: undefined
+            // Step 5: Create data channel for events
+            const dataChannel = peerConnection.createDataChannel('realtime', {
+                ordered: true
             });
             dataChannelRef.current = dataChannel;
 
-            console.log('[DEBUG] Data channel created:', dataChannel);
-            console.log('[DEBUG] Data channel readyState:', dataChannel.readyState);
-            console.log('[DEBUG] Data channel label:', dataChannel.label);
-
-            // Also try waiting for remote data channel approach
-            let remoteDataChannelReceived = false;
-
-            // Add data channel state monitoring  
-            dataChannel.onclose = () => {
-                console.log('[DEBUG] Data channel closed');
-            };
-
-            dataChannel.onerror = (error) => {
-                console.error('[DEBUG] Data channel error:', error);
-            };
-
             dataChannel.onopen = () => {
-                console.log('[WEBRTC] Data channel opened!');
-                console.log('[DEBUG] Data channel is now open, readyState:', dataChannel.readyState);
+                console.log('[WEBRTC] Data channel opened');
                 setAudioStatus('connected');
                 setIsListening(true);
 
                 // Track call start time
                 callStartTimeRef.current = Date.now();
-
-                // DEBUG: Log data channel state
-                console.log('[DEBUG] Data channel state:', dataChannel.readyState);
-                console.log('[DEBUG] Data channel label:', dataChannel.label);
 
                 // Send an initial message to start the conversation
                 const startMessage = {
@@ -260,14 +234,9 @@ const FamilyTreeAICall: React.FC<FamilyTreeAICallProps> = ({ onClose, mode }) =>
 
                 setTimeout(() => {
                     if (!hasInitialResponseRef.current) {
-                        console.log('[DEBUG] Sending initial message:', JSON.stringify(startMessage, null, 2));
-                        try {
-                            dataChannel.send(JSON.stringify(startMessage));
-                            hasInitialResponseRef.current = true;
-                            console.log('[WEBRTC] Sent initial greeting using ephemeral token configuration');
-                        } catch (sendError) {
-                            console.error('[DEBUG] Failed to send initial message:', sendError);
-                        }
+                        dataChannel.send(JSON.stringify(startMessage));
+                        hasInitialResponseRef.current = true;
+                        console.log('[WEBRTC] Sent initial greeting using ephemeral token configuration');
                     }
                 }, 1000); // Small delay to ensure connection is fully established
 
@@ -299,70 +268,11 @@ const FamilyTreeAICall: React.FC<FamilyTreeAICallProps> = ({ onClose, mode }) =>
                 try {
                     const data = JSON.parse(event.data);
                     console.log('[WEBRTC] Data channel message:', data.type, data);
-                    console.log('[DEBUG] Full message data:', JSON.stringify(data, null, 2));
 
                     switch (data.type) {
                         case 'session.created':
-                            console.log('[DEBUG] Session created successfully:', data);
                             // Ensure we're in connected state when session is created
                             setAudioStatus('connected');
-
-                            // Send a test message to trigger AI response
-                            setTimeout(() => {
-                                const testMessage = {
-                                    type: 'conversation.item.create',
-                                    item: {
-                                        type: 'message',
-                                        role: 'user',
-                                        content: [{ type: 'input_text', text: 'Hello, can you hear me?' }]
-                                    }
-                                };
-                                console.log('[DEBUG] Sending test message:', JSON.stringify(testMessage, null, 2));
-                                try {
-                                    dataChannel.send(JSON.stringify(testMessage));
-
-                                    // Then trigger response
-                                    const responseMessage = {
-                                        type: 'response.create',
-                                        response: {
-                                            modalities: ['audio', 'text']
-                                        }
-                                    };
-                                    setTimeout(() => {
-                                        console.log('[DEBUG] Triggering response:', JSON.stringify(responseMessage, null, 2));
-                                        dataChannel.send(JSON.stringify(responseMessage));
-                                    }, 500);
-                                } catch (error) {
-                                    console.error('[DEBUG] Failed to send test message:', error);
-                                }
-                            }, 1000);
-                            break;
-                        case 'session.updated':
-                            console.log('[DEBUG] Session updated:', data);
-                            break;
-                        case 'response.created':
-                            console.log('[DEBUG] Response created:', data);
-                            break;
-                        case 'response.output_item.added':
-                            console.log('[DEBUG] Response output item added:', data);
-                            break;
-                        case 'response.output_item.done':
-                            console.log('[DEBUG] Response output item done:', data);
-                            break;
-                        case 'response.done':
-                            console.log('[DEBUG] Response done:', data);
-                            break;
-                        case 'response.audio.delta':
-                            console.log('[DEBUG] Audio delta received - length:', data.delta ? data.delta.length : 'no delta');
-                            break;
-                        case 'response.audio.done':
-                            console.log('[DEBUG] Audio response done:', data);
-                            break;
-                        case 'input_audio_buffer.committed':
-                            console.log('[DEBUG] Input audio buffer committed:', data);
-                            break;
-                        case 'input_audio_buffer.cleared':
-                            console.log('[DEBUG] Input audio buffer cleared:', data);
                             break;
                         case 'conversation.item.created':
                             if (data.item.type === 'message' && data.item.role === 'assistant') {
@@ -422,24 +332,12 @@ const FamilyTreeAICall: React.FC<FamilyTreeAICallProps> = ({ onClose, mode }) =>
                                 setCurrentTranscript('');
                             }
                             break;
-                        case 'response.function_call_arguments.delta':
-                            // Handle function call arguments (not used in current implementation)
-                            console.log('[WEBRTC] Function call arguments delta (ignored):', data);
-                            break;
-                        case 'response.function_call_arguments.done':
-                            // Handle function call arguments completion (not used in current implementation)
-                            console.log('[WEBRTC] Function call arguments done (ignored):', data);
-                            break;
                         case 'error':
                             console.error('[WEBRTC] OpenAI error:', data.error);
                             setAudioStatus('error');
                             setTimeout(() => {
                                 stopAudioCall(); // Remove await for faster disconnect
                             }, 2000); // Auto-disconnect on error after 2 seconds
-                            break;
-                        default:
-                            // Handle any unrecognized message types
-                            console.log('[WEBRTC] Unhandled message type:', data.type, data);
                             break;
                     }
                 } catch (err) {
@@ -456,62 +354,12 @@ const FamilyTreeAICall: React.FC<FamilyTreeAICallProps> = ({ onClose, mode }) =>
                 const audio = new Audio();
                 audio.srcObject = remoteStream;
                 audio.autoplay = true;
-                audio.volume = 1.0; // Ensure full volume
-                audio.controls = false; // Hide controls
-                audio.muted = false; // Ensure not muted
                 remoteAudioRef.current = audio;
 
-                // Add to DOM to ensure playback works (hidden)
-                audio.style.display = 'none';
-                document.body.appendChild(audio);
-
-                // DEBUG: Log audio stream details
-                console.log('[DEBUG] Remote stream tracks:', remoteStream.getTracks());
-                console.log('[DEBUG] Audio element created:', audio);
-                console.log('[DEBUG] Audio element volume:', audio.volume);
-                console.log('[DEBUG] Audio element muted:', audio.muted);
-
-                // Handle audio playback with user interaction if needed
-                const playAudio = async () => {
-                    try {
-                        console.log('[DEBUG] Attempting to play audio...');
-                        const playPromise = audio.play();
-                        await playPromise;
-                        console.log('[AUDIO] Remote audio playing successfully');
-                        console.log('[DEBUG] Audio currentTime:', audio.currentTime);
-                        console.log('[DEBUG] Audio paused:', audio.paused);
-                        console.log('[DEBUG] Audio ended:', audio.ended);
-                    } catch (error) {
-                        console.warn('[AUDIO] Audio autoplay failed, trying with user interaction:', error);
-
-                        // Create a one-time click handler to start audio
-                        const clickHandler = async () => {
-                            try {
-                                console.log('[DEBUG] User clicked, attempting audio play...');
-                                await audio.play();
-                                console.log('[AUDIO] Audio started after user interaction');
-                                console.log('[DEBUG] Audio playing after click - paused:', audio.paused);
-                                document.removeEventListener('click', clickHandler);
-                            } catch (playError) {
-                                console.error('[AUDIO] Failed to play audio even with user interaction:', playError);
-                            }
-                        };
-
-                        document.addEventListener('click', clickHandler, { once: true });
-                        console.log('[AUDIO] Click anywhere to enable audio playback');
-                    }
-                };
-
-                // Add event listeners for debugging
-                audio.addEventListener('loadstart', () => console.log('[DEBUG] Audio loadstart'));
-                audio.addEventListener('loadeddata', () => console.log('[DEBUG] Audio loadeddata'));
-                audio.addEventListener('canplay', () => console.log('[DEBUG] Audio canplay'));
-                audio.addEventListener('playing', () => console.log('[DEBUG] Audio playing'));
-                audio.addEventListener('pause', () => console.log('[DEBUG] Audio paused'));
-                audio.addEventListener('ended', () => console.log('[DEBUG] Audio ended'));
-                audio.addEventListener('error', (e) => console.error('[DEBUG] Audio error:', e));
-
-                playAudio();
+                // Handle audio playbook on mobile Safari
+                audio.play().catch(error => {
+                    console.warn('[WEBRTC] Audio autoplay failed, user interaction required:', error);
+                });
 
                 // Add remote audio to our recording mixer
                 try {
@@ -532,36 +380,7 @@ const FamilyTreeAICall: React.FC<FamilyTreeAICallProps> = ({ onClose, mode }) =>
                 }
             };
 
-            // Handle remote data channels (OpenAI might create these)
-            peerConnection.ondatachannel = (event) => {
-                console.log('[DEBUG] Remote data channel received:', event.channel);
-                const remoteChannel = event.channel;
-                console.log('[DEBUG] Remote channel label:', remoteChannel.label);
-                console.log('[DEBUG] Remote channel readyState:', remoteChannel.readyState);
 
-                // If this is the realtime channel, use it instead
-                if (remoteChannel.label === 'realtime' || remoteChannel.label === 'oai-events') {
-                    console.log('[DEBUG] Using remote data channel instead of local');
-                    remoteDataChannelReceived = true;
-                    dataChannelRef.current = remoteChannel;
-
-                    // Set up the same handlers on the remote channel
-                    remoteChannel.onopen = () => {
-                        console.log('[WEBRTC] Remote data channel opened!');
-                        setAudioStatus('connected');
-                        setIsListening(true);
-                        callStartTimeRef.current = Date.now();
-
-                        // Set up the message handler with all our debug logic
-                        remoteChannel.onmessage = dataChannel.onmessage;
-                    };
-
-                    remoteChannel.onclose = () => console.log('[DEBUG] Remote data channel closed');
-                    remoteChannel.onerror = (error) => console.error('[DEBUG] Remote data channel error:', error);
-                } else {
-                    console.log('[DEBUG] Received unrecognized remote data channel:', remoteChannel.label);
-                }
-            };
 
             // Step 8: Handle connection state changes
             peerConnection.onconnectionstatechange = () => {
@@ -623,35 +442,7 @@ const FamilyTreeAICall: React.FC<FamilyTreeAICallProps> = ({ onClose, mode }) =>
 
             console.log('[WEBRTC] WebRTC connection established!');
 
-            // Add timeout to check if data channel never opens
-            setTimeout(() => {
-                if (dataChannelRef.current && dataChannelRef.current.readyState !== 'open') {
-                    console.warn('[DEBUG] Data channel timeout - still not open after 5 seconds');
-                    console.log('[DEBUG] Current data channel state:', dataChannelRef.current.readyState);
-                    console.log('[DEBUG] Remote data channel received:', remoteDataChannelReceived);
 
-                    // Try creating a new data channel with different settings
-                    console.log('[DEBUG] Attempting to create backup data channel...');
-                    try {
-                        const backupChannel = peerConnection.createDataChannel('backup-realtime', {
-                            ordered: false  // Try unordered
-                        });
-
-                        backupChannel.onopen = () => {
-                            console.log('[DEBUG] Backup data channel opened!');
-                            dataChannelRef.current = backupChannel;
-                            setAudioStatus('connected');
-                            setIsListening(true);
-                            callStartTimeRef.current = Date.now();
-                        };
-
-                        backupChannel.onmessage = dataChannelRef.current?.onmessage || (() => { });
-
-                    } catch (backupError) {
-                        console.error('[DEBUG] Failed to create backup channel:', backupError);
-                    }
-                }
-            }, 5000);
 
         } catch (error) {
             console.error('[WEBRTC] Failed to start call:', error);
@@ -730,46 +521,7 @@ const FamilyTreeAICall: React.FC<FamilyTreeAICallProps> = ({ onClose, mode }) =>
     // Assign save function to ref for cleanup
     saveOnUnmountRef.current = saveVoiceChatData;
 
-    // Debug functions
-    const sendDebugMessage = (message: string) => {
-        if (dataChannelRef.current && dataChannelRef.current.readyState === 'open') {
-            try {
-                dataChannelRef.current.send(message);
-                setDebugInfo(`Sent: ${message}`);
-                console.log('[DEBUG] Manual message sent:', message);
-            } catch (error) {
-                setDebugInfo(`Error sending: ${error}`);
-                console.error('[DEBUG] Failed to send manual message:', error);
-            }
-        } else {
-            setDebugInfo('Data channel not open');
-        }
-    };
 
-    const enableInputAudio = () => {
-        const message = JSON.stringify({
-            type: 'input_audio_buffer.append',
-            audio: '' // Empty to just enable the buffer
-        });
-        sendDebugMessage(message);
-    };
-
-    const triggerResponse = () => {
-        const message = JSON.stringify({
-            type: 'response.create',
-            response: {
-                modalities: ['audio', 'text']
-            }
-        });
-        sendDebugMessage(message);
-    };
-
-    const commitAudioBuffer = () => {
-        const message = JSON.stringify({
-            type: 'input_audio_buffer.commit'
-        });
-        sendDebugMessage(message);
-    };
 
     const stopAudioCall = async () => {
         console.log('[WEBRTC] Stopping audio call...');
@@ -1023,47 +775,7 @@ const FamilyTreeAICall: React.FC<FamilyTreeAICallProps> = ({ onClose, mode }) =>
                             </div>
                         )}
 
-                        {/* Debug Controls */}
-                        {isDebugMode && audioStatus === 'connected' && (
-                            <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-                                <h4 className="text-sm font-semibold text-yellow-800 mb-2">🔧 Debug Controls</h4>
-                                <div className="grid grid-cols-2 gap-2 mb-2">
-                                    <button
-                                        onClick={triggerResponse}
-                                        className="text-xs bg-blue-500 text-white px-2 py-1 rounded"
-                                    >
-                                        Trigger AI Response
-                                    </button>
-                                    <button
-                                        onClick={enableInputAudio}
-                                        className="text-xs bg-green-500 text-white px-2 py-1 rounded"
-                                    >
-                                        Enable Input Audio
-                                    </button>
-                                    <button
-                                        onClick={commitAudioBuffer}
-                                        className="text-xs bg-purple-500 text-white px-2 py-1 rounded"
-                                    >
-                                        Commit Audio Buffer
-                                    </button>
-                                    <button
-                                        onClick={() => {
-                                            if (remoteAudioRef.current) {
-                                                remoteAudioRef.current.play().catch(console.error);
-                                            }
-                                        }}
-                                        className="text-xs bg-orange-500 text-white px-2 py-1 rounded"
-                                    >
-                                        Retry Audio Play
-                                    </button>
-                                </div>
-                                {debugInfo && (
-                                    <div className="text-xs text-yellow-700 bg-yellow-100 p-2 rounded mt-2">
-                                        {debugInfo}
-                                    </div>
-                                )}
-                            </div>
-                        )}
+
                     </div>
                 )}
             </div>
