@@ -31,7 +31,7 @@ export default function FamilyTree() {
     const handlePhoneCall = () => {
         if (isMobile) {
             // On mobile, open the phone dialer with the Canadian number
-            window.location.href = 'tel:+12267504637';
+            window.location.href = 'tel:+12267808462';
         } else {
             // On desktop, use WebRTC
             setShowAICall(true);
@@ -78,7 +78,7 @@ export default function FamilyTree() {
                                 onClick={handlePhoneCall}
                             >
                                 <span role="img" aria-label="Phone" className="text-2xl">📞</span>
-                                Call (226) 750-4637: Share Your Family Details
+                                Call (226) 780-8462: Share Your Family Details
                             </button>
                             <p className="text-sm text-gray-600 mt-2 max-w-md mx-auto">
                                 Tap to call our Canadian phone number and share your family tree information with our AI assistant
